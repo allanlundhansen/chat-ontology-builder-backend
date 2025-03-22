@@ -26,15 +26,6 @@ Look into the foundation directory in the root of the project to read the FullPa
 - Use tags to group related endpoints by resource or functional area
 - Implement examples for all endpoints to facilitate easier integration by consumers
 
-#### Storybook
-
-- Organize stories by component hierarchy to mirror the application structure
-- Implement comprehensive controls to showcase component variations for {{component_types}}
-- Use MDX format to combine documentation and live examples for complex components
-- Configure Storybook addons for accessibility, responsive design, and {{specific_testing_needs}}
-- Implement design token integration to showcase components with different themes
-- Create interaction tests to verify component behavior in addition to visual appearance
-
 
 ### Guidelines for Version Control
 

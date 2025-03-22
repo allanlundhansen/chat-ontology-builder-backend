@@ -4,7 +4,7 @@ A Kantian-inspired neuro-symbolic AI backend framework implementing dynamic conc
 
 ## Overview
 
-This backend serves as the core implementation of the Kantian-inspired cognitive architecture described in our research. It handles the integration between neural networks and symbolic reasoning, manages the knowledge graph, coordinates with LLMs, and provides a comprehensive API for frontend clients.
+This backend serves as the core implementation of the Kantian-inspired cognitive architecture described in our research. It handles the integration between neural networks and symbolic reasoning, manages the knowledge graph, coordinates with LLMs, and provides a comprehensive API for frontend clients. The system integrates with the Chat Ontology Builder frontend to provide an intuitive interface for visualizing and interacting with the knowledge graph.
 
 ## Key Features
 
@@ -14,6 +14,8 @@ This backend serves as the core implementation of the Kantian-inspired cognitive
 - **Ethical Reasoning**: Built-in deontological constraints throughout the decision-making process (later stage)
 - **Active Inference**: Resource-aware computation balancing information gain against computational cost
 - **Multi-stage Verification**: Robust hallucination detection and mitigation for LLM outputs
+- **Conversational Interface**: Natural language chat interaction with the knowledge graph
+- **Visual Knowledge Exploration**: Integration with the Chat Ontology Builder for intuitive visualization
 
 ## System Architecture
 
@@ -24,6 +26,20 @@ The backend implements five core cognitive modules:
 3. **Judgment Module**: Classification and concept formation through determinant and reflective judgment processes
 4. **Reason Module**: Meta-reasoning layer ensuring global coherence through active inference
 5. **Action/Sense Layer**: LLM-based ingestion converting external unstructured data into symbolic representations
+6. **Chat Integration Service**: Dedicated interface enabling conversational interaction with the knowledge graph
+
+## Integration with Chat Ontology Builder
+
+The KantAI Backend integrates seamlessly with the Chat Ontology Builder frontend through:
+
+- **RESTful API**: Comprehensive endpoints for querying and manipulating the knowledge graph
+- **WebSocket Communication**: Real-time updates for interactive visualization and chat
+- **Visualization-Specific Endpoints**: Optimized data retrieval for graph rendering
+- **Hierarchical Data Access**: Support for parent-child relationships and collapse/expand operations
+- **Natural Language Interface**: LLM-powered chat functionality for intuitive ontology interaction
+- **Batch Operations**: Efficient bulk modifications for complex ontology changes
+
+This integration enables both technical and non-technical users to interact with the Kantian knowledge framework through intuitive visual and conversational interfaces.
 
 ## Technology Stack
 
@@ -32,6 +48,7 @@ The backend implements five core cognitive modules:
 - **Neural-Symbolic Bridge**: Logic Tensor Networks (LTNs), Graph Neural Networks (GNNs)
 - **LLM Integration**: REST API connections to external or self-hosted LLMs
 - **API Layer**: FastAPI for RESTful services
+- **Real-time Communication**: WebSockets for chat and live updates
 - **Containerization**: Docker, Kubernetes
 - **Monitoring**: Prometheus, Grafana
 - **CI/CD**: GitHub Actions
@@ -72,6 +89,9 @@ causal_relationships = backend.understanding.query("MATCH (a)-[:CAUSES]->(b) RET
 
 # Generate explanations for novel phenomena
 explanation = backend.judgment.reflect(novel_data, domain="physics")
+
+# Interact through the chat interface
+chat_response = backend.chat.process_message("How are causality relationships represented in the system?")
 ```
 
 ## API Reference
@@ -93,15 +113,26 @@ The backend exposes a comprehensive RESTful API:
 - `POST /process`: Accepts raw sensory data and returns processed embeddings
 - `POST /embed`: Transforms structured data into vector embeddings
 
+### Chat Integration API
+- `POST /chat/message`: Processes a chat message and returns a response
+- `GET /chat/history`: Retrieves conversation history
+- `WS /chat/ws`: WebSocket endpoint for real-time chat interaction
+
+### Visualization-Specific API
+- `GET /visualize/subgraph`: Returns optimized data for visualization
+- `GET /visualize/hierarchy`: Retrieves parent-child relationship data
+- `POST /visualize/expand/{node_id}`: Expands collapsed nodes
+- `POST /visualize/collapse/{node_id}`: Collapses node hierarchies
+
 See [API Documentation](docs/api.md) for complete details.
 
 ## Development
 
 ### Prerequisites
-- Python
+- Python 3.9+
 - Docker and Docker Compose
 - Neo4j Graph Database
-- GPU for neural components (recommended, but not decided)
+- GPU for neural components (recommended)
 
 ### Running Tests
 ```bash
