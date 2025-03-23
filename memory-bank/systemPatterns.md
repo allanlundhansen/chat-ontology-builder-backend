@@ -145,7 +145,9 @@ While our computational implementation necessarily simplifies this model, we mai
 
 - **RESTful Architecture**: For standard HTTP interactions
 - **WebSocket Support**: For real-time updates in chat and visualization
-- **GraphQL Endpoint**: For flexible querying of the knowledge graph
+- **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph
+- **Query Templates**: Pre-defined Cypher query templates for common knowledge graph operations
+- **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
 
 ### Containerization and Deployment
 
