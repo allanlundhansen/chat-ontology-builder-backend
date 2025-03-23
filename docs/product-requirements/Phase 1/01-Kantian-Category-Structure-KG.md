@@ -57,7 +57,7 @@ The KantAI backend requires a robust, philosophically grounded knowledge represe
 ### 5.3 Relationship Types
 
 - Implement relationship types corresponding to Kantian categories:
-  - INSTANCE_OF: Connects concepts to their categorical classification
+  - INSTANCE_OF: Connects concepts to their categorical classification and is inherently an implementation of unity
   - HAS_PROPERTY: Implements Substance-Accident relationships
   - CAUSES: Implements Causality relationships
   - INTERACTS_WITH: Implements Community (reciprocal) relationships
