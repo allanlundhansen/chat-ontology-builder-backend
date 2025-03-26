@@ -66,7 +66,7 @@ RETURN c.name AS Concept, c.quality AS InvalidQualityValue;
 // This checks that all concepts with Modality property have valid values
 MATCH (c:Concept)
 WHERE c.modality IS NOT NULL 
-  AND c.modality NOT IN ["Possible", "Actual", "Necessary"]
+  AND c.modality NOT IN ["Possibility/Impossibility", "Existence/Non-existence", "Necessity/Contingency"]
 RETURN c.name AS Concept, c.modality AS InvalidModalityValue;
 
 // Test 13: Count concepts by Quality
@@ -93,14 +93,15 @@ RETURN c1.name AS From, c2.name AS To, r.temporal_distance AS TemporalDistance,
 // Checks that all SPATIALLY_RELATES_TO relationships have required properties
 MATCH (c1:Concept)-[r:SPATIALLY_RELATES_TO]->(c2:Concept)
 RETURN c1.name AS From, c2.name AS To, r.relation_type AS RelationType, 
-       r.distance AS Distance, r.spatial_unit AS SpatialUnit;
+       r.distance AS Distance, r.spatial_unit AS SpatialUnit,
+       r.spatial_dimension AS SpatialDimension;
 
 // Test 17: Test getConceptsByQuality procedure
 CALL custom.getConceptsByQuality("Reality", 0, 10) YIELD id, name, description, confidence
 RETURN name, description, confidence;
 
 // Test 18: Test getConceptsByModality procedure
-CALL custom.getConceptsByModality("Possible", 0, 10) YIELD id, name, description, confidence
+CALL custom.getConceptsByModality("Possibility/Impossibility", 0, 10) YIELD id, name, description, confidence
 RETURN name, description, confidence;
 
 // Test 19: Test getTemporalRelationships procedure
@@ -113,4 +114,9 @@ RETURN name, description, temporalDistance;
 MATCH (c:Concept {name: "Earth"})
 WITH c.id AS conceptId
 CALL custom.getSpatialRelationships(conceptId, 10) YIELD name, description, relationType, distance
-RETURN name, description, relationType, distance; 
+RETURN name, description, relationType, distance;
+
+// Note on Temporal and Spatial Relationships:
+// PRECEDES and SPATIALLY_RELATES_TO relationships represent Kant's Forms of Intuition (Time and Space),
+// which are not part of the Categories of Understanding but provide the necessary framework for organizing
+// experience. These relationships extend the core categorical structure with temporal and spatial dimensions. 

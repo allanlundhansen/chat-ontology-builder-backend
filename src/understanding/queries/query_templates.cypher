@@ -186,4 +186,10 @@ CALL apoc.custom.asProcedure(
   [['conceptId', 'STRING'], ['limit', 'INTEGER', 50]], 
   [['id', 'STRING'], ['name', 'STRING'], ['description', 'STRING'], 
    ['relationType', 'STRING'], ['distance', 'STRING'], ['confidence', 'FLOAT']]
-); 
+);
+
+// Note on Hybrid Approach:
+// The queries reflect the hybrid approach to Kantian category representation:
+// 1. Quality and Modality categories use direct property queries (getConceptsByQuality, getConceptsByModality)
+// 2. Quantity and Relation categories use relationship-based queries (getConceptsByCategory, getConceptsBySubcategory)
+// 3. Temporal and spatial relationships (Forms of Intuition) have dedicated query templates 

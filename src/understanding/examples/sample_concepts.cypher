@@ -12,8 +12,8 @@ CREATE (ball:Concept {
   creation_timestamp: datetime(),
   // Quality property - Reality represents positive determination
   quality: "Reality",
-  // Modality property - Actual represents existence
-  modality: "Actual"
+  // Modality property - Existence/Non-existence represents existence
+  modality: "Existence/Non-existence"
 })
 
 CREATE (red:Concept {
@@ -38,7 +38,7 @@ CREATE (heat:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 })
 
 CREATE (expansion:Concept {
@@ -50,7 +50,7 @@ CREATE (expansion:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create earth and moon concepts for community (reciprocal) example
@@ -63,7 +63,7 @@ CREATE (earth:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 })
 
 CREATE (moon:Concept {
@@ -75,7 +75,7 @@ CREATE (moon:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create forest and tree concepts for totality and plurality examples
@@ -88,7 +88,7 @@ CREATE (forest:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 })
 
 CREATE (tree:Concept {
@@ -100,7 +100,7 @@ CREATE (tree:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create concepts for temporal relationships example
@@ -113,7 +113,7 @@ CREATE (lightning:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 })
 
 CREATE (thunder:Concept {
@@ -125,7 +125,7 @@ CREATE (thunder:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create a concept with Negation quality
@@ -138,7 +138,7 @@ CREATE (absence:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Negation",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create a concept with Limitation quality
@@ -151,7 +151,7 @@ CREATE (horizon:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Limitation",
-  modality: "Actual"
+  modality: "Existence/Non-existence"
 });
 
 // Create concepts with different modalities
@@ -164,7 +164,7 @@ CREATE (unicorn:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Possible"
+  modality: "Possibility/Impossibility"
 })
 
 CREATE (gravity:Concept {
@@ -176,7 +176,7 @@ CREATE (gravity:Concept {
   source_information: "manual entry",
   creation_timestamp: datetime(),
   quality: "Reality",
-  modality: "Necessary"
+  modality: "Necessity/Contingency"
 });
 
 // Classify concepts according to Kantian categories
@@ -189,12 +189,12 @@ CREATE (ball)-[:INSTANCE_OF {
 }]->(substance);
 
 MATCH (red:Concept {name: "Red"})
-MATCH (quality:Category {name: "Quality"})
+MATCH (reality:Subcategory {name: "Reality"})
 CREATE (red)-[:INSTANCE_OF {
   confidence_score: 1.0,
   creation_timestamp: datetime(),
   source_information: "manual classification"
-}]->(quality);
+}]->(reality);
 
 MATCH (heat:Concept {name: "Heat"})
 MATCH (causality:Subcategory {name: "Causality"})
@@ -346,4 +346,10 @@ CREATE (moon)-[:SPATIALLY_RELATES_TO {
   distance: "384,400",
   spatial_unit: "km",
   spatial_dimension: "3D"
-}]->(earth); 
+}]->(earth);
+
+// Note on Hybrid Approach:
+// This sample data demonstrates the hybrid approach to representing Kantian categories:
+// 1. Quality and Modality are represented through direct properties on Concept nodes
+// 2. Quantity and Relation categories are represented via INSTANCE_OF relationships to Subcategory nodes
+// This approach optimizes for both query performance and semantic clarity. 

@@ -35,7 +35,7 @@ REQUIRE c.quality IN ["Reality", "Negation", "Limitation"];
 CREATE CONSTRAINT modality_values IF NOT EXISTS 
 FOR (c:Concept) 
 WHERE c.modality IS NOT NULL
-REQUIRE c.modality IN ["Possible", "Actual", "Necessary"];
+REQUIRE c.modality IN ["Possibility/Impossibility", "Existence/Non-existence", "Necessity/Contingency"];
 
 // Define standard properties for Concept nodes
 // This is a comment to document the expected structure of Concept nodes
@@ -49,6 +49,11 @@ Concept node structure:
 - source_information: String - source of the concept
 - creation_timestamp: DateTime - when the concept was created
 - quality: String (optional) - Quality category: "Reality", "Negation", or "Limitation"
-- modality: String (optional) - Modality category: "Possible", "Actual", or "Necessary"
+- modality: String (optional) - Modality category: "Possibility/Impossibility", "Existence/Non-existence", or "Necessity/Contingency"
 - other optional properties depending on the concept type
-*/ 
+*/
+
+// Note on Hybrid Approach:
+// Quality and Modality are implemented as direct properties on Concept nodes for efficiency in querying 
+// and constraint validation, while Quantity and Relation categories are represented through INSTANCE_OF 
+// relationships to Subcategory nodes. This hybrid approach balances performance with expressive power. 
