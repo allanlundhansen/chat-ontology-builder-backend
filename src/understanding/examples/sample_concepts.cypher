@@ -353,3 +353,66 @@ CREATE (moon)-[:SPATIALLY_RELATES_TO {
 // 1. Quality and Modality are represented through direct properties on Concept nodes
 // 2. Quantity and Relation categories are represented via INSTANCE_OF relationships to Subcategory nodes
 // This approach optimizes for both query performance and semantic clarity. 
+
+// --- Add Concepts for Missing Subcategories ---
+
+// Concept for Unity (Quantity)
+MERGE (atom:Concept {name: "Atom"})
+  ON CREATE SET
+    atom.id = randomUUID(),
+    atom.description = "The basic unit of a chemical element.",
+    atom.confidence_score = 0.98,
+    atom.stability_status = "stable",
+    atom.source_information = "Sample Data Script",
+    atom.creation_timestamp = datetime();
+
+// Concept for Limitation (Quality)
+MERGE (shadow:Concept {name: "Shadow"})
+  ON CREATE SET
+    shadow.id = randomUUID(),
+    shadow.description = "A dark area or shape produced by a body coming between rays of light and a surface.",
+    shadow.confidence_score = 0.95,
+    shadow.stability_status = "ephemeral", // Shadows depend on light/object
+    shadow.source_information = "Sample Data Script",
+    shadow.creation_timestamp = datetime(),
+    shadow.quality = "Limitation"; // Also set the direct property for Quality
+
+// Concept for Negation (Quality)
+MERGE (vacuum:Concept {name: "Vacuum"})
+  ON CREATE SET
+    vacuum.id = randomUUID(),
+    vacuum.description = "Space devoid of matter.",
+    vacuum.confidence_score = 0.97,
+    vacuum.stability_status = "stable", // Concept is stable
+    vacuum.source_information = "Sample Data Script",
+    vacuum.creation_timestamp = datetime(),
+    vacuum.quality = "Negation"; // Also set the direct property for Quality
+
+
+// --- Link New Concepts to Subcategories ---
+
+// Link Atom to Unity
+MATCH (c:Concept {name: "Atom"}), (s:Subcategory {name: "Unity"})
+MERGE (c)-[r:INSTANCE_OF]->(s)
+  ON CREATE SET
+    r.confidence_score = 0.98,
+    r.creation_timestamp = datetime(),
+    r.source_information = "Sample Data Script";
+
+// Link Shadow to Limitation
+MATCH (c:Concept {name: "Shadow"}), (s:Subcategory {name: "Limitation"})
+MERGE (c)-[r:INSTANCE_OF]->(s)
+  ON CREATE SET
+    r.confidence_score = 0.95,
+    r.creation_timestamp = datetime(),
+    r.source_information = "Sample Data Script";
+
+// Link Vacuum to Negation
+MATCH (c:Concept {name: "Vacuum"}), (s:Subcategory {name: "Negation"})
+MERGE (c)-[r:INSTANCE_OF]->(s)
+  ON CREATE SET
+    r.confidence_score = 0.97,
+    r.creation_timestamp = datetime(),
+    r.source_information = "Sample Data Script";
+
+// --- End Added Concepts --- 
