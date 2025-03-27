@@ -190,4 +190,8 @@ REQUIRE r.relation_type IS NOT NULL;
 
 CREATE CONSTRAINT spatial_dimension_exists IF NOT EXISTS
 FOR ()-[r:SPATIALLY_RELATES_TO]->()
-REQUIRE r.spatial_dimension IS NOT NULL; 
+REQUIRE r.spatial_dimension IS NOT NULL;
+
+MERGE (rel:Category {name: "Relation"});
+MERGE (subs:Subcategory {name: "Substance"});
+MERGE (rel)-[:HAS_SUBCATEGORY]->(subs); 

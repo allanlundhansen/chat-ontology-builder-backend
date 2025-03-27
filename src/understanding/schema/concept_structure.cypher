@@ -11,8 +11,6 @@ CREATE INDEX concept_name_index IF NOT EXISTS
 FOR (c:Concept) 
 ON (c.name);
 
-CREATE INDEX category_name_index IF NOT EXISTS FOR (c:Category) ON (c.name);
-CREATE INDEX subcategory_name_index IF NOT EXISTS FOR (c:Subcategory) ON (c.name);
 CREATE INDEX concept_confidence_index IF NOT EXISTS FOR (c:Concept) ON (c.confidence_score);
 CREATE INDEX concept_stability_index IF NOT EXISTS FOR (c:Concept) ON (c.stability_status);
 // Add indexes for Quality and Modality properties

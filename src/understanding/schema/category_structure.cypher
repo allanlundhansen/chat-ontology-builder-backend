@@ -1,45 +1,83 @@
 // Kantian Category Structure - Neo4j Implementation
 // This file creates the core categorical structure based on Kant's epistemology
 
-// Create main category nodes
-CREATE (quantity:Category {name: "Quantity", description: "Deals with the extension of concepts"})
-CREATE (quality:Category {name: "Quality", description: "Deals with the content of concepts"})
-CREATE (relation:Category {name: "Relation", description: "Deals with how concepts relate to each other"})
-CREATE (modality:Category {name: "Modality", description: "Deals with the relation of concepts to the faculty of cognition"});
+// --- Constraints for Categories and Subcategories ---
+// Ensure uniqueness and existence. These implicitly create necessary indexes.
+CREATE CONSTRAINT category_name_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS UNIQUE;
+CREATE CONSTRAINT category_name_exists IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS NOT NULL; // Optional, but good practice
+CREATE CONSTRAINT subcategory_name_unique IF NOT EXISTS FOR (s:Subcategory) REQUIRE s.name IS UNIQUE;
+CREATE CONSTRAINT subcategory_name_exists IF NOT EXISTS FOR (s:Subcategory) REQUIRE s.name IS NOT NULL; // Optional, but good practice
 
-// Create Quantity subcategories and connect them
-CREATE (unity:Subcategory {name: "Unity", description: "Concept of One"})
-CREATE (plurality:Subcategory {name: "Plurality", description: "Concept of Many"})
-CREATE (totality:Subcategory {name: "Totality", description: "Concept of All"})
-CREATE (quantity)-[:HAS_SUBCATEGORY]->(unity)
-CREATE (quantity)-[:HAS_SUBCATEGORY]->(plurality)
-CREATE (quantity)-[:HAS_SUBCATEGORY]->(totality);
+// --- Create/Ensure Core Structure using MERGE ---
 
-// Create Quality subcategories and connect them
-CREATE (reality:Subcategory {name: "Reality", description: "Positive determination"})
-CREATE (negation:Subcategory {name: "Negation", description: "Negative determination"})
-CREATE (limitation:Subcategory {name: "Limitation", description: "Bounded determination"})
-CREATE (quality)-[:HAS_SUBCATEGORY]->(reality)
-CREATE (quality)-[:HAS_SUBCATEGORY]->(negation)
-CREATE (quality)-[:HAS_SUBCATEGORY]->(limitation);
+// Create/Ensure main category nodes
+MERGE (quantity:Category {name: "Quantity"})
+  ON CREATE SET quantity.description = "Deals with the extension of concepts";
+MERGE (quality:Category {name: "Quality"})
+  ON CREATE SET quality.description = "Deals with the content of concepts";
+MERGE (relation:Category {name: "Relation"})
+  ON CREATE SET relation.description = "Deals with how concepts relate to each other";
+MERGE (modality:Category {name: "Modality"})
+  ON CREATE SET modality.description = "Deals with the relation of concepts to the faculty of cognition";
 
-// Create Relation subcategories and connect them
-CREATE (substance:Subcategory {name: "Substance-Accident", description: "Relation of inherence and subsistence"})
-CREATE (causality:Subcategory {name: "Causality", description: "Relation of cause and effect"})
-CREATE (community:Subcategory {name: "Community", description: "Reciprocal relation between agent and patient"})
-CREATE (relation)-[:HAS_SUBCATEGORY]->(substance)
-CREATE (relation)-[:HAS_SUBCATEGORY]->(causality)
-CREATE (relation)-[:HAS_SUBCATEGORY]->(community);
+// Create/Ensure Quantity subcategories
+MERGE (unity:Subcategory {name: "Unity"})
+  ON CREATE SET unity.description = "Concept of One";
+MERGE (plurality:Subcategory {name: "Plurality"})
+  ON CREATE SET plurality.description = "Concept of Many";
+MERGE (totality:Subcategory {name: "Totality"})
+  ON CREATE SET totality.description = "Concept of All";
 
-// Create Modality subcategories and connect them
-CREATE (possibility:Subcategory {name: "Possibility/Impossibility", description: "Agreement or conflict with conditions of experience"})
-CREATE (existence:Subcategory {name: "Existence/Non-existence", description: "Agreement or conflict with material conditions of experience"})
-CREATE (necessity:Subcategory {name: "Necessity/Contingency", description: "Agreement or determination by material conditions of experience"})
-CREATE (modality)-[:HAS_SUBCATEGORY]->(possibility)
-CREATE (modality)-[:HAS_SUBCATEGORY]->(existence)
-CREATE (modality)-[:HAS_SUBCATEGORY]->(necessity);
+// Create/Ensure Quality subcategories
+MERGE (reality:Subcategory {name: "Reality"})
+  ON CREATE SET reality.description = "Positive determination";
+MERGE (negation:Subcategory {name: "Negation"})
+  ON CREATE SET negation.description = "Negative determination";
+MERGE (limitation:Subcategory {name: "Limitation"})
+  ON CREATE SET limitation.description = "Bounded determination";
 
-// Add formal definitions and examples
+// Create/Ensure Relation subcategories
+MERGE (substance:Subcategory {name: "Substance"})
+  ON CREATE SET substance.description = "Relation of inherence and subsistence";
+MERGE (causality:Subcategory {name: "Causality"})
+  ON CREATE SET causality.description = "Relation of cause and effect";
+MERGE (community:Subcategory {name: "Community"})
+  ON CREATE SET community.description = "Reciprocal relation between agent and patient";
+
+// Create/Ensure Modality subcategories
+MERGE (possibility:Subcategory {name: "Possibility/Impossibility"})
+  ON CREATE SET possibility.description = "Agreement or conflict with conditions of experience";
+MERGE (existence:Subcategory {name: "Existence/Non-existence"})
+  ON CREATE SET existence.description = "Agreement or conflict with material conditions of experience";
+MERGE (necessity:Subcategory {name: "Necessity/Contingency"})
+  ON CREATE SET necessity.description = "Agreement or determination by material conditions of experience";
+
+// --- Create/Ensure HAS_SUBCATEGORY Relationships using MATCH then MERGE ---
+
+// Quantity Relationships
+MATCH (cat:Category {name: "Quantity"}), (sub:Subcategory {name: "Unity"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Quantity"}), (sub:Subcategory {name: "Plurality"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Quantity"}), (sub:Subcategory {name: "Totality"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+
+// Quality Relationships
+MATCH (cat:Category {name: "Quality"}), (sub:Subcategory {name: "Reality"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Quality"}), (sub:Subcategory {name: "Negation"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Quality"}), (sub:Subcategory {name: "Limitation"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+
+// Relation Relationships
+MATCH (cat:Category {name: "Relation"}), (sub:Subcategory {name: "Substance"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Relation"}), (sub:Subcategory {name: "Causality"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Relation"}), (sub:Subcategory {name: "Community"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+
+// Modality Relationships
+MATCH (cat:Category {name: "Modality"}), (sub:Subcategory {name: "Possibility/Impossibility"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Modality"}), (sub:Subcategory {name: "Existence/Non-existence"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+MATCH (cat:Category {name: "Modality"}), (sub:Subcategory {name: "Necessity/Contingency"}) MERGE (cat)-[:HAS_SUBCATEGORY]->(sub);
+
+
+// --- Add/Update formal definitions and examples ---
+// Using SET here is okay, it will update the properties if the nodes already exist.
+
 MATCH (unity:Subcategory {name: "Unity"})
 SET unity.formal_definition = "A concept considered as including only a single instance",
     unity.examples = ["Individual", "Unit", "Single"];
@@ -66,7 +104,7 @@ SET limitation.formal_definition = "The boundary between reality and negation",
     limitation.examples = ["Boundary", "Finitude", "Restriction"];
 
 // Set formal definitions and examples for Relation subcategories
-MATCH (substance:Subcategory {name: "Substance-Accident"})
+MATCH (substance:Subcategory {name: "Substance"}) // Adjusted name if changed above
 SET substance.formal_definition = "The relation of properties to a thing",
     substance.examples = ["Object-property", "Subject-predicate", "Inherence"];
 
