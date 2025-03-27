@@ -11,11 +11,11 @@ The KantAI Backend project is transitioning from the planning phase to initial i
 - Documentation of system requirements and goals is in place
 - **Neo4j schema for the Kantian Category Structure has been implemented**, including:
   - Four primary Kantian categories (Quantity, Quality, Relation, Modality) with subcategories
-  - Concept node structure with properties and constraints
+  - Concept node structure with properties and constraints (**Note**: Value constraints for `quality`/`modality` enforced at application level)
   - Relationship types based on Kantian categories
-  - Query templates for common operations
+  - Query templates (`.cypher` files) for common operations (Note: Not stored procedures due to platform limitations)
   - Sample data for testing and demonstration
-  - Validation queries to ensure correctness
+  - Validation queries to ensure correctness (updated to reflect direct query execution)
 
 ## What's Left to Build
 
@@ -25,6 +25,8 @@ The KantAI Backend project is transitioning from the planning phase to initial i
   - API layer for external access
 - Imagination Module (Productive and Reproductive) - Not Started
 - Judgment Module (Determinant and Reflective) - Not Started
+  - Includes plan for replacing property-based modality with judgment-based representation
+  - Requires migration strategy for existing modality data
 - Reason Module (Active Inference) - Not Started
 - Action/Sense Layer (LLM Integration) - Not Started
 - Ethical Oversight Module - Not Started
@@ -61,7 +63,9 @@ As the project is still in early implementation, there are a few known technical
 2. **LLM Reliability**: Ensuring consistent and accurate outputs from LLMs will be challenging
 3. **Graph Performance**: Neo4j query performance for complex operations needs optimization
 4. **Concept Formation**: Implementing reflective judgment for novel inputs will require sophisticated algorithms
-5. **Ethical Framework**: Translating Kantian ethics into computational constraints is conceptually challenging
+5. **Modality Migration**: The planned transition from property-based to judgment-based modality in Phase 2 introduces significant migration complexity.
+6. **Data Integrity Risk (Quality/Modality)**: Lack of database-level constraints for `quality`/`modality` values (due to AuraDB limitations) requires strict application-level validation; risk of inconsistent data if validation is bypassed.
+7. **Ethical Framework**: Translating Kantian ethics into computational constraints is conceptually challenging
 
 ## Next Milestones
 

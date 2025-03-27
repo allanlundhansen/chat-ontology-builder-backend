@@ -86,6 +86,9 @@ docker-compose up -d
 - WebSocket endpoints for real-time updates
 - Batch operations for efficient bulk modifications
 
+### Platform Limitations Encountered
+- **Neo4j AuraDB Constraints/Triggers/Procedures**: The current AuraDB environment (Neo4j 5.x) lacks support for direct "enum-style" value constraints, conditional property existence constraints (e.g., require `spatial_unit` only if `distance` exists), and does not have APOC triggers (`apoc.trigger.install`) or the procedure creation procedure (`apoc.custom.asProcedure`) enabled/available. This necessitates application-level validation for specific property values (e.g., `Concept.quality`, `Concept.modality`), conditional relationship property rules, and requires query templates to be executed by the application rather than stored as database procedures.
+
 ## Dependencies
 
 ### External Services

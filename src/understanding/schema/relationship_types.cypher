@@ -172,15 +172,22 @@ CREATE CONSTRAINT spatial_sourceinfo_exists IF NOT EXISTS
 FOR ()-[r:SPATIALLY_RELATES_TO]->() 
 REQUIRE r.source_information IS NOT NULL;
 
-CREATE CONSTRAINT spatial_relation_type_exists IF NOT EXISTS 
-FOR ()-[r:SPATIALLY_RELATES_TO]->() 
+CREATE CONSTRAINT spatial_relation_type_exists IF NOT EXISTS
+FOR ()-[r:SPATIALLY_RELATES_TO]->()
 REQUIRE r.relation_type IS NOT NULL;
 
-CREATE CONSTRAINT spatial_unit_exists IF NOT EXISTS 
-FOR ()-[r:SPATIALLY_RELATES_TO]->() 
-WHERE r.distance IS NOT NULL
-REQUIRE r.spatial_unit IS NOT NULL;
+// --- Conditional Constraint Removed ---
+// The constraint requiring 'spatial_unit' if 'distance' is present cannot be created
+// with standard Neo4j 5.x syntax and triggers are unavailable in the current environment.
+// **Requirement:** Application logic MUST validate that 'spatial_unit' is provided
+// whenever 'distance' is set on a SPATIALLY_RELATES_TO relationship.
+//
+// Original Attempt (Invalid Syntax):
+// CREATE CONSTRAINT spatial_unit_exists IF NOT EXISTS
+// FOR ()-[r:SPATIALLY_RELATES_TO]->()
+// WHERE r.distance IS NOT NULL
+// REQUIRE r.spatial_unit IS NOT NULL;
 
-CREATE CONSTRAINT spatial_dimension_exists IF NOT EXISTS 
-FOR ()-[r:SPATIALLY_RELATES_TO]->() 
+CREATE CONSTRAINT spatial_dimension_exists IF NOT EXISTS
+FOR ()-[r:SPATIALLY_RELATES_TO]->()
 REQUIRE r.spatial_dimension IS NOT NULL; 

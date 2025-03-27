@@ -125,8 +125,12 @@ While our computational implementation necessarily simplifies this model, we mai
 ### 4. Knowledge Representation
 
 - **Neo4j Graph Database**: Stores concepts and relationships according to Kant's categorical structure
-- **Hierarchical Categories**: Quantity, Quality, Relation, and Modality categories organize all concepts
+- **Hierarchical Categories**: Quantity, Quality, Relation, and Modality categories organize all concepts. (Note: Phase 1 uses properties for Quality/Modality, planned for replacement in Phase 2. Value validation for Phase 1 properties enforced at application level due to DB limitations).
 - **Relationship Types**: Specialized predicates for different categorical dimensions
+- **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph, often using predefined templates.
+- **Query Templates**: Pre-defined Cypher query templates (`.cypher` files) for common knowledge graph operations, executed by the application layer. (Note: APOC custom procedures are unavailable).
+- **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
+- **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
 
 ## Technical Decisions
 
@@ -145,9 +149,10 @@ While our computational implementation necessarily simplifies this model, we mai
 
 - **RESTful Architecture**: For standard HTTP interactions
 - **WebSocket Support**: For real-time updates in chat and visualization
-- **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph
-- **Query Templates**: Pre-defined Cypher query templates for common knowledge graph operations
+- **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph, often using predefined templates.
+- **Query Templates**: Pre-defined Cypher query templates (`.cypher` files) for common knowledge graph operations, executed by the application layer. (Note: APOC custom procedures are unavailable).
 - **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
+- **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
 
 ### Containerization and Deployment
 

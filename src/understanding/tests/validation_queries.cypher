@@ -1,10 +1,14 @@
 // Validation Queries - Neo4j Implementation
 // This file contains test queries to validate the Kantian knowledge graph implementation
 
-// Test 1: Verify Category Structure
-// This query checks that we have 4 categories, each with 3 subcategories
+// Test 1: Verify Category and Subcategory Counts
+// Ensure the 4 main categories and their 3 subcategories each exist
 MATCH (c:Category)
-RETURN c.name AS Category, count((c)-[:HAS_SUBCATEGORY]->()) AS SubcategoryCount;
+OPTIONAL MATCH (c)-[:HAS_SUBCATEGORY]->(sub:Subcategory)
+RETURN c.name AS Category, count(sub) AS SubcategoryCount
+ORDER BY c.name;
+
+// Expected: 4 rows (Modality, Quality, Quantity, Relation), each with SubcategoryCount = 3
 
 // Test 2: Verify subcategories are connected to the correct categories
 MATCH (c:Category)-[:HAS_SUBCATEGORY]->(s:Subcategory)
@@ -21,24 +25,32 @@ MATCH (c1:Concept)-[r]->(c2:Concept)
 WHERE type(r) <> "INSTANCE_OF"
 RETURN type(r) AS RelationshipType, count(r) AS Count;
 
-// Test 5: Test the getConceptsByCategory procedure
+// Test 5: Test the getConceptsByCategory logic (formerly procedure)
 // This tests the corrected query that matches through subcategories
-CALL custom.getConceptsByCategory("Relation", 0, 10) YIELD id, name, description, confidence
-RETURN name, description, confidence;
+// Replaces: CALL getConceptsByCategory("Relation", 0, 10) YIELD ...
+WITH "Relation" AS category
+MATCH (c:Concept)-[:INSTANCE_OF]->(sub:Subcategory)<-[:HAS_SUBCATEGORY]-(cat:Category {name: category})
+RETURN c.name AS name, c.description AS description, c.confidence_score AS confidence
+ORDER BY c.name
+SKIP 0
+LIMIT 10;
 
-// Test 6: Test the getCausalChain procedure
-// First get a concept ID that has causal relationships
+// Test 6: Test the getCausalChain logic (formerly procedure)
+// Replaces: CALL getCausalChain(heatId, 3, 10) YIELD path
 MATCH (c:Concept {name: "Heat"})
-WITH c.id AS heatId
-CALL custom.getCausalChain(heatId, 3, 10) YIELD path
-RETURN path;
+WITH c.id AS conceptId
+MATCH path = (start:Concept {id: conceptId})-[:CAUSES*1..3]->(effect:Concept)
+RETURN path
+LIMIT 10;
 
-// Test 7: Test getConceptProperties procedure
-// First get a concept ID that has property relationships
+// Test 7: Test getConceptProperties logic (formerly procedure)
+// Replaces: CALL getConceptProperties(ballId, 10) YIELD ...
 MATCH (c:Concept {name: "Ball"})
-WITH c.id AS ballId
-CALL custom.getConceptProperties(ballId, 10) YIELD id, name, description, confidence
-RETURN name, description, confidence;
+WITH c.id AS conceptId
+MATCH (concept:Concept {id: conceptId})-[r:HAS_PROPERTY]->(prop:Concept)
+RETURN prop.name AS name, prop.description AS description, r.confidence_score AS confidence
+ORDER BY r.confidence_score DESC
+LIMIT 10;
 
 // Test 8: Test integrity constraints
 // This checks that all relationships have the required properties
@@ -58,15 +70,15 @@ RETURN c1.name AS Concept1, c2.name AS Concept2, "Missing reciprocal relationshi
 // Test 11: Verify Quality property values
 // This checks that all concepts with Quality property have valid values
 MATCH (c:Concept)
-WHERE c.quality IS NOT NULL 
-  AND c.quality NOT IN ["Reality", "Negation", "Limitation"]
+WHERE c.quality IS NOT NULL
+  AND NOT (c.quality IN ["Reality", "Negation", "Limitation"])
 RETURN c.name AS Concept, c.quality AS InvalidQualityValue;
 
 // Test 12: Verify Modality property values
 // This checks that all concepts with Modality property have valid values
 MATCH (c:Concept)
-WHERE c.modality IS NOT NULL 
-  AND c.modality NOT IN ["Possibility/Impossibility", "Existence/Non-existence", "Necessity/Contingency"]
+WHERE c.modality IS NOT NULL
+  AND NOT (c.modality IN ["Possibility/Impossibility", "Existence/Non-existence", "Necessity/Contingency"])
 RETURN c.name AS Concept, c.modality AS InvalidModalityValue;
 
 // Test 13: Count concepts by Quality
@@ -86,35 +98,66 @@ ORDER BY ConceptCount DESC;
 // Test 15: Verify temporal relationships
 // Checks that all PRECEDES relationships have required properties
 MATCH (c1:Concept)-[r:PRECEDES]->(c2:Concept)
-RETURN c1.name AS From, c2.name AS To, r.temporal_distance AS TemporalDistance, 
+RETURN c1.name AS From, c2.name AS To, r.temporal_distance AS TemporalDistance,
        r.temporal_unit AS TemporalUnit, r.temporal_order AS TemporalOrder;
 
 // Test 16: Verify spatial relationships
 // Checks that all SPATIALLY_RELATES_TO relationships have required properties
 MATCH (c1:Concept)-[r:SPATIALLY_RELATES_TO]->(c2:Concept)
-RETURN c1.name AS From, c2.name AS To, r.relation_type AS RelationType, 
+RETURN c1.name AS From, c2.name AS To, r.relation_type AS RelationType,
        r.distance AS Distance, r.spatial_unit AS SpatialUnit,
        r.spatial_dimension AS SpatialDimension;
 
-// Test 17: Test getConceptsByQuality procedure
-CALL custom.getConceptsByQuality("Reality", 0, 10) YIELD id, name, description, confidence
-RETURN name, description, confidence;
+// Test 17: Test getConceptsByQuality logic (formerly procedure)
+// Replaces: CALL getConceptsByQuality("Reality", 0, 10) YIELD ...
+WITH "Reality" AS quality
+MATCH (c:Concept)
+WHERE c.quality = quality
+RETURN c.name AS name, c.description AS description, c.confidence_score AS confidence
+ORDER BY c.name
+SKIP 0
+LIMIT 10;
 
-// Test 18: Test getConceptsByModality procedure
-CALL custom.getConceptsByModality("Possibility/Impossibility", 0, 10) YIELD id, name, description, confidence
-RETURN name, description, confidence;
+// Test 18: Test getConceptsByModality logic (formerly procedure)
+// Replaces: CALL getConceptsByModality("Possibility/Impossibility", 0, 10) YIELD ...
+WITH "Possibility/Impossibility" AS modality
+MATCH (c:Concept)
+WHERE c.modality = modality
+RETURN c.name AS name, c.description AS description, c.confidence_score AS confidence
+ORDER BY c.name
+SKIP 0
+LIMIT 10;
 
-// Test 19: Test getTemporalRelationships procedure
-MATCH (c:Concept {name: "Lightning"})
-WITH c.id AS conceptId
-CALL custom.getTemporalRelationships(conceptId, 10) YIELD name, description, temporalDistance
-RETURN name, description, temporalDistance;
+// Test 19: Test getTemporalRelationships logic (formerly procedure)
+// Replaces: CALL getTemporalRelationships(conceptId, 10) YIELD ...
 
-// Test 20: Test getSpatialRelationships procedure
+// Branch 1: Relationships originating FROM "Lightning"
+MATCH (c:Concept {name: "Lightning"}) // Find the starting concept
+MATCH (c)-[r:PRECEDES]->(after:Concept)
+RETURN after.name AS name, after.description AS description,
+       r.temporal_distance AS temporalDistance, r.confidence_score AS confidence
+
+UNION
+
+// Branch 2: Relationships pointing TO "Lightning"
+MATCH (c:Concept {name: "Lightning"}) // Re-find the starting concept
+MATCH (before:Concept)-[r:PRECEDES]->(c)
+RETURN before.name AS name, before.description AS description,
+       r.temporal_distance AS temporalDistance, r.confidence_score AS confidence
+
+// ORDER BY and LIMIT apply to the combined result set
+ORDER BY confidence DESC
+LIMIT 10;
+
+// Test 20: Test getSpatialRelationships logic (formerly procedure)
+// Replaces: CALL getSpatialRelationships(conceptId, 10) YIELD ...
 MATCH (c:Concept {name: "Earth"})
 WITH c.id AS conceptId
-CALL custom.getSpatialRelationships(conceptId, 10) YIELD name, description, relationType, distance
-RETURN name, description, relationType, distance;
+MATCH (concept:Concept {id: conceptId})-[r:SPATIALLY_RELATES_TO]-(other:Concept)
+RETURN other.name AS name, other.description AS description,
+       r.relation_type AS relationType, r.distance AS distance, r.confidence_score AS confidence
+ORDER BY confidence DESC
+LIMIT 10;
 
 // Note on Temporal and Spatial Relationships:
 // PRECEDES and SPATIALLY_RELATES_TO relationships represent Kant's Forms of Intuition (Time and Space),

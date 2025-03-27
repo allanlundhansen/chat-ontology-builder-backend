@@ -16,7 +16,7 @@ Current AI systems face several critical limitations:
 The KantAI Backend addresses these challenges by implementing a Kantian-inspired cognitive architecture that:
 
 1. **Integrates Neural and Symbolic Approaches**: Combines the pattern recognition capabilities of neural networks with the interpretability and reasoning capabilities of symbolic AI
-2. **Provides a Principled Framework**: Uses Kant's epistemological insights to organize knowledge according to categorical structures
+2. **Provides a Principled Framework**: Uses Kant's epistemological insights to organize knowledge according to categorical structures (eventually representing modality accurately through judgments).
 3. **Bridges Raw Data and Concepts**: Implements Kant's productive and reproductive imagination as computational mechanisms to transition between unstructured data and structured concepts
 4. **Enforces Ethical Constraints**: Incorporates deontological ethics throughout the decision-making process
 5. **Ensures Global Coherence**: Uses active inference to maintain consistency across the knowledge graph

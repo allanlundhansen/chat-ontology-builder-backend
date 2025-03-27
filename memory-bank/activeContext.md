@@ -11,7 +11,7 @@ We have begun implementation of the KantAI Backend, with current focus on:
    - ✅ Developed query templates for common operations
    - ✅ Created sample data for testing and demonstration
    - ✅ Implemented validation queries to ensure correctness
-   - Next: Developing API layer for external access
+   - Next: Developing API layer for external access (Note: API design should anticipate Phase 2 modality transition and include application-level validation for `quality`/`modality` properties **and the conditional `spatial_unit` requirement on `SPATIALLY_RELATES_TO` relationships**)
 
 2. **Architecture Implementation**: Establishing the initial framework based on Kantian principles
    - Next modules to implement: General Logic Module and SHACL Constraints
@@ -30,7 +30,7 @@ We have begun implementation of the KantAI Backend, with current focus on:
 - Implemented all four Kantian categories (Quantity, Quality, Relation, Modality) with subcategories
 - Defined concept structure with properties, constraints, and indices
 - Implemented relationship types corresponding to Kantian categories
-- Created stored procedures for common queries
+- Created query templates (Cypher scripts) for common operations (Note: APOC custom procedures like `apoc.custom.asProcedure` are unavailable in the current environment, so templates will be executed by the application layer).
 - Developed sample data and validation queries
 
 ## Next Steps
@@ -49,6 +49,7 @@ We have begun implementation of the KantAI Backend, with current focus on:
    - Implement Evans' input/output logic formalism
    - Create representation of judgment forms
    - Build connection with the Understanding Module
+   - Plan for modality migration (property-based to judgment-based) as part of Phase 2
 
 4. **Action/Sense Layer**:
    - Implement connection to LLM providers
@@ -64,9 +65,12 @@ We have begun implementation of the KantAI Backend, with current focus on:
 
 1. **Direct Neo4j Implementation**: Decided to implement the Knowledge Graph directly in Neo4j with Cypher scripts rather than using a Python abstraction layer to minimize unnecessary complexity
 2. **Cypher Query Approach**: Chose to use direct Cypher queries instead of GraphQL, focusing on leveraging Neo4j's native query capabilities
-3. **APOC Stored Procedures**: Using APOC for creating reusable query templates that encapsulate common operations
-4. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
-5. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
+3. **Query Templates**: Decided to define reusable query templates in `.cypher` files. These will be loaded and executed by the application layer, as APOC procedures (`apoc.custom.asProcedure`) are not available in the current AuraDB environment.
+4. **Modality Representation Strategy**: Decided to replace the Phase 1 property-based modality on Concept nodes with a judgment-based representation in Phase 2, rather than maintaining coexistence. This involves a planned migration.
+5. **Quality/Modality Value Validation**: Due to limitations with Neo4j 5.x constraint syntax and the unavailability of APOC triggers in the current AuraDB environment, the validation ensuring `quality` and `modality` properties contain only the allowed Kantian values (or NULL) will be enforced at the **application level**.
+6. **Conditional Relationship Property Validation**: Similarly, the rule requiring `spatial_unit` when `distance` is present on `SPATIALLY_RELATES_TO` relationships cannot be enforced via standard constraints and will also be handled at the **application level**.
+7. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
+8. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
 
 ## Current Challenges
 
@@ -74,4 +78,6 @@ We have begun implementation of the KantAI Backend, with current focus on:
 2. **Concept Classification**: Determining the right level of granularity for concept categorization
 3. **Relationship Constraints**: Implementing proper constraints to maintain data integrity across relationship types
 4. **Integration Strategy**: Planning the connection between the Knowledge Graph and other modules
-5. **Testing Approach**: Developing comprehensive tests for graph operations and constraints 
+5. **Modality Migration Complexity**: Ensuring a smooth and accurate migration from property-based to judgment-based modality in Phase 2.
+6. **Application-Level Validation Consistency**: Ensuring rigorous and consistent validation logic is applied across all application components writing `quality` and `modality` properties to the database, **as well as conditional properties like `spatial_unit`**.
+7. **Testing Approach**: Developing comprehensive tests for graph operations and constraints 

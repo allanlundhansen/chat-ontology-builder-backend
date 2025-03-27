@@ -18,7 +18,7 @@ The KantAI Backend is a Kantian-inspired neuro-symbolic AI framework implementin
 
 The backend implements five core cognitive modules:
 
-1. **Understanding Module**: Neo4j GraphDB with SHACL constraints organizing knowledge according to Kant's categorical framework
+1. **Understanding Module**: Neo4j GraphDB with SHACL constraints organizing knowledge according to Kant's categorical framework (with planned evolution for modality representation).
 2. **Imagination Module**: Generative components bridging sensory data and concepts via productive and reproductive pathways
 3. **Judgment Module**: Classification and concept formation through determinant and reflective judgment processes
 4. **Reason Module**: Meta-reasoning layer ensuring global coherence through active inference
