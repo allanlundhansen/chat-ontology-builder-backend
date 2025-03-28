@@ -129,3 +129,48 @@ async def test_create_concept_success(async_client: AsyncClient):
     #         # assert delete_response.status_code in [200, 204]
     #     except Exception as cleanup_err:
     #         print(f"Warning: Cleanup failed for {concept_id_to_delete}: {cleanup_err}") 
+
+@pytest.mark.anyio
+async def test_delete_concept_success(async_client: AsyncClient):
+    """Test successfully deleting an existing concept."""
+    # Arrange: Create a concept to delete
+    concept_data = {
+        "name": "ConceptToDelete",
+        "description": "This concept will be deleted.",
+        "label": "TestConcept",
+        # Add other required fields if necessary
+    }
+    create_response = await async_client.post(CONCEPTS_ENDPOINT, json=concept_data)
+    assert create_response.status_code == status.HTTP_201_CREATED
+    created_concept = create_response.json()
+    print("DEBUG: POST /concepts response:", created_concept)
+    element_id_to_delete = created_concept["elementId"]
+    assert element_id_to_delete # Ensure we got an ID
+
+    # Act: Delete the concept
+    delete_response = await async_client.delete(f"{CONCEPTS_ENDPOINT}{element_id_to_delete}")
+
+    # Assert: Check for 204 No Content status
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+    # Act (Verify): Try to get the deleted concept
+    get_response = await async_client.get(f"{CONCEPTS_ENDPOINT}{element_id_to_delete}")
+
+    # Assert (Verify): Check for 404 Not Found status
+    assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_delete_concept_not_found(async_client: AsyncClient):
+    """Test deleting a concept with an element ID that does not exist."""
+    # Arrange: Use a plausible but non-existent element ID format
+    # Using a random UUID string might cause format errors with elementId() function.
+    # non_existent_id = str(uuid.uuid4()) # <-- Original
+    # Use a format like "NodeID:LabelName:UUID"
+    non_existent_id = "4:FakeConcept:" + str(uuid.uuid4()) # <-- Fix: Use plausible format
+
+    # Act: Attempt to delete the non-existent concept
+    response = await async_client.delete(f"{CONCEPTS_ENDPOINT}{non_existent_id}")
+
+    # Assert: Check for 404 Not Found status
+    assert response.status_code == status.HTTP_404_NOT_FOUND 

@@ -606,3 +606,43 @@ async def get_concept_by_element_id(
         print(f"Unexpected error in {endpoint_name}: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error in {endpoint_name}")
+
+@router.delete("/{element_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_concept_by_element_id(
+    element_id: str,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Deletes a concept node by its element ID.
+    Uses DETACH DELETE to remove the node and any relationships connected to it.
+    Returns 204 No Content on successful deletion.
+    Returns 404 Not Found if the concept does not exist.
+    """
+    query = """
+    MATCH (c)
+    WHERE elementId(c) = $element_id
+    DETACH DELETE c
+    RETURN count(c) AS deleted_count
+    """
+    try:
+        result = await session.run(query, {"element_id": element_id})
+        record = await result.single()
+
+        if not record or record["deleted_count"] == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Concept with element ID '{element_id}' not found.",
+            )
+        # Success case (implicit return None -> 204)
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly so FastAPI handles it
+        raise http_exc
+    except Exception as e:
+        # Catch *other*, truly unexpected exceptions
+        # logger.error(f"Error deleting concept {element_id}: {e}", exc_info=True) # Proper logging
+        print(f"!!! UNEXPECTED Error deleting concept {element_id}: {type(e).__name__} - {e}") # (Can remove/refine later)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected server error occurred while trying to delete concept {element_id}.",
+        )

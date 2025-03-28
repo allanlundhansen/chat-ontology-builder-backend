@@ -11,8 +11,8 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
   - `POST /`: Implemented and tested (basic creation, validation).
   - `GET /`: Implemented and tested (retrieval with filtering).
   - `GET /{element_id}`: Implemented and tested (retrieval by ID, 404 handling).
+  - `DELETE /{element_id}`: Implemented and tested (deletion by ID, 404/204 handling).
   - `PUT / PATCH /{element_id}`: **Next Up**
-  - `DELETE /{element_id}`: **Next Up**
 - **Relationships Endpoint (`/api/v1/relationships`)**:
   - `POST /`: Implemented and tested (basic creation, spatial unit validation).
   - `GET /`: Not started.
@@ -25,24 +25,22 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - Core schema based on Kantian categories exists.
 - Queries for creating concepts and relationships are implemented within API endpoints.
 - Queries for retrieving concepts (all and by ID) are implemented.
+- Queries for deleting concepts are implemented.
 - Indexing is partially implemented.
 
 ### Testing
-- Integration tests for `POST /concepts`, `GET /concepts`, `GET /concepts/{id}`, and `POST /relationships` are implemented and passing.
+- Integration tests for `POST /concepts`, `GET /concepts`, `GET /concepts/{id}`, `DELETE /concepts/{id}`, and `POST /relationships` are implemented and passing.
 - Unit tests for specific validation logic exist.
 - Test fixtures for Neo4j sessions (async) are set up.
 - Specific test failures related to fixtures, assertions, and async loops have been resolved.
 
 ## Recent Changes
 
+- **Implemented `DELETE /api/v1/concepts/{element_id}` Endpoint**: Added functionality to delete a concept by its element ID using `DETACH DELETE`. Handles 404 for non-existent IDs and returns 204 on success. Added integration tests (`test_delete_concept_success`, `test_delete_concept_not_found`). Fixed issues related to response key (`elementId`) and exception handling (`except Exception` catching `HTTPException`).
 - **Implemented `GET /api/v1/concepts` Endpoint**: Added functionality to retrieve a list of concepts, including filtering by `limit` and `confidence_threshold`. Added integration tests.
 - **Implemented `GET /api/v1/concepts/{element_id}` Endpoint**: Added functionality to retrieve a single concept by its element ID. Implemented 404 handling for non-existent IDs. Added integration tests.
-- **Resolved Test Failures**:
-  - Fixed `FixtureLookupError` for `neo4j_test_session` in `test_validation_errors.py` by updating the `test_concepts_for_rels` fixture to use `neo4j_async_session`.
-  - Corrected `AssertionError` in `test_create_concept_success` by changing assertion from `confidence_score` to `confidence`.
-  - Corrected `AssertionError` in `test_get_concepts_by_confidence_high_threshold` by changing assertion from `confidence_score` to `confidence`.
-  - Fixed `RuntimeError: Task ... attached to a different loop` in `test_get_concept_by_id_not_found` by converting the test to async and using `async_client`.
-- **Updated Documentation**: Reflected implementation progress in `01-Kantian-Category-Structure-KG.md`.
+- **Resolved Test Failures**: Addressed `FixtureLookupError`, multiple `AssertionErrors` (`confidence_score` vs `confidence`, `201` vs `200`), and `RuntimeError` (async loop conflict).
+- **Updated Documentation**: Reflected implementation progress in `01-Kantian-Category-Structure-KG.md`. Introduced `docs/current_tasks.md` for granular task tracking and `docs/icebox.md` for deferred tasks.
 
 ## Open Questions & Decisions
 
@@ -50,27 +48,26 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - **Skipped Tests**: Prioritize addressing skipped tests? (e.g., tests requiring specific known element IDs, `test_list_concepts_empty`).
 - **Error Handling**: Refine error handling and response formats for consistency.
 - **INSTANCE_OF Relationship**: How should the `INSTANCE_OF` relationship (Task 2/3 in PRD) be managed via the API? Likely needs dedicated endpoints or specific handling within concept/category endpoints.
+- **API Naming Convention**: Task created in `icebox.md` to enforce consistent `snake_case` in JSON responses.
 
 ## Next Steps
 
 ### Immediate
-1.  **Commit Changes**: Commit the implemented GET endpoints and test fixes.
-2.  **Update Documentation**: Apply these updates to `activeContext.md` and `progress.md`.
-3.  **Decide Next API Task**: Choose between implementing Concept `UPDATE`, Concept `DELETE`, addressing skipped tests, or moving to Relationship CRUD.
+1.  **Commit Changes**: Commit the implemented DELETE endpoint, tests, and documentation updates (`current_tasks.md`, `icebox.md`, `activeContext.md`, `progress.md`).
+2.  **Decide Next API Task**: Choose between implementing Concept `UPDATE`, addressing skipped tests, moving to Relationship CRUD, or addressing an `icebox.md` item.
 
 ### API Layer
 - Implement `UPDATE` (`PUT`/`PATCH`) endpoint for concepts.
-- Implement `DELETE` endpoint for concepts.
 - Implement `GET`, `UPDATE`, `DELETE` endpoints for relationships.
 - Implement endpoints for categories.
 
 ### Database Layer
-- Implement Cypher queries for update and delete operations.
+- Implement Cypher queries for update operations.
 - Implement queries for managing `INSTANCE_OF` relationships.
 - Develop queries for navigating semantic, temporal, and spatial relationships as per PRD Task 4.
 
 ### Testing
-- Add integration tests for `UPDATE` and `DELETE` endpoints for concepts and relationships.
+- Add integration tests for `UPDATE` endpoints for concepts and remaining CRUD for relationships/categories.
 - Address skipped tests.
 - Potentially add more unit tests for complex business logic if needed.
 
@@ -78,6 +75,7 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - Continue updating Memory Bank files as progress is made.
 - Generate/update OpenAPI (Swagger) documentation.
 - Document schema and queries more formally (PRD Task 5).
+- Address items in `icebox.md` when prioritized.
 
 ## Active Decisions and Considerations
 
