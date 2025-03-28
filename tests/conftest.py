@@ -1,6 +1,14 @@
+import sys
+import os
+
+# Add project root to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+PROJECT_ROOT = project_root
+
 import pytest
 import os
-import sys
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession, GraphDatabase, Driver, Session
@@ -10,10 +18,6 @@ from httpx import AsyncClient, ASGITransport
 from fastapi.testclient import TestClient
 # Make sure anyio is installed (it should be a dependency of httpx)
 # import anyio
-
-# Add project root for imports
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, PROJECT_ROOT)
 
 # --- App and Original Driver Import ---
 from src.main import app as application

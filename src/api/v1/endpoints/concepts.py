@@ -6,7 +6,7 @@ import traceback
 import functools
 
 from src.db.neo4j_driver import get_db
-from src.models.concept import Concept, ConceptCreate, ConceptResponse
+from src.models.concept import Concept, ConceptCreate, ConceptResponse, ConceptUpdate
 from src.models.path import PathResponse
 from src.utils.cypher_loader import load_query
 from src.models.relationship import RelationshipInfo, TemporalRelationshipInfo, SpatialRelationshipInfo
@@ -645,4 +645,66 @@ async def delete_concept_by_element_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected server error occurred while trying to delete concept {element_id}.",
+        )
+
+@router.patch("/{element_id}", response_model=ConceptResponse)
+async def update_concept_partial(
+    element_id: str,
+    concept_update: ConceptUpdate,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Partially updates a concept node by its element ID.
+    Only updates the fields provided in the request body.
+    Returns the updated concept data.
+    Returns 404 Not Found if the concept does not exist.
+    """
+    # Get only the fields that were actually sent in the request
+    update_data = concept_update.model_dump(exclude_unset=True)
+
+    # Check if there's anything to update
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No update data provided.",
+        )
+
+    # Cypher query to find the node, update it, and return it
+    query = """
+    MATCH (c:Concept)
+    WHERE elementId(c) = $element_id
+    SET c += $update_data
+    RETURN c, elementId(c) AS elementId
+    """
+
+    try:
+        result = await session.run(
+            query, {"element_id": element_id, "update_data": update_data}
+        )
+        record = await result.single()
+
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Concept with element ID '{element_id}' not found.",
+            )
+
+        # Process the returned record into the response model
+        updated_node_data = record["c"]
+        returned_element_id = record["elementId"]
+        response_data = {**updated_node_data, "elementId": returned_element_id}
+
+        # Return the updated concept, validated by the response model
+        return ConceptResponse(**response_data)
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly
+        raise http_exc
+    except Exception as e:
+        # Log unexpected errors
+        # logger.error(f"Error updating concept {element_id}: {e}", exc_info=True)
+        print(f"!!! UNEXPECTED Error updating concept {element_id}: {type(e).__name__} - {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected server error occurred while trying to update concept {element_id}.",
         )

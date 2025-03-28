@@ -66,4 +66,14 @@ class ConceptResponse(Concept):
     """Schema for the response when a concept is created or retrieved."""
     # Inherits all fields from Concept
     # You can add or override fields specifically for responses if needed
-    pass 
+    pass
+
+# Properties that can be received PATCH requests for a concept
+class ConceptUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    label: Optional[str] = None
+    quality: Optional[str] = None
+    modality: Optional[str] = None
+    stability: Optional[str] = None
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0) # Keep validation if present in Base 

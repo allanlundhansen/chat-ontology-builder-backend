@@ -174,3 +174,73 @@ async def test_delete_concept_not_found(async_client: AsyncClient):
 
     # Assert: Check for 404 Not Found status
     assert response.status_code == status.HTTP_404_NOT_FOUND 
+
+@pytest.mark.anyio
+async def test_update_concept_partial_success(async_client: AsyncClient):
+    """Test successfully partially updating an existing concept."""
+    # Arrange: Create a concept
+    initial_data = {
+        "name": "ConceptToUpdate",
+        "description": "Initial Description",
+        "label": "UpdateTest",
+        "confidence": 0.6
+    }
+    create_response = await async_client.post(CONCEPTS_ENDPOINT, json=initial_data)
+    assert create_response.status_code == status.HTTP_201_CREATED
+    created_concept = create_response.json()
+    # Use the potentially camelCased 'elementId' based on previous findings
+    element_id = created_concept.get("elementId")
+    assert element_id
+
+    # Arrange: Define partial update data
+    update_payload = {
+        "description": "Updated Description",
+        "confidence": 0.95,
+        "stability": "stable" # Example of adding/changing an optional field
+    }
+
+    # Act: Update the concept using PATCH
+    patch_response = await async_client.patch(
+        f"{CONCEPTS_ENDPOINT}{element_id}", json=update_payload
+    )
+
+    # Assert: Check for 200 OK status and validate response body
+    assert patch_response.status_code == status.HTTP_200_OK
+    updated_concept_response = patch_response.json()
+
+    # Verify updated fields in the response
+    assert updated_concept_response["description"] == update_payload["description"]
+    assert updated_concept_response["confidence"] == update_payload["confidence"]
+    assert updated_concept_response["stability"] == update_payload["stability"]
+    # Verify unchanged field remains the same in the response
+    assert updated_concept_response["name"] == initial_data["name"]
+    # Verify elementId is present (using camelCase again)
+    assert updated_concept_response.get("elementId") == element_id
+
+    # Act/Assert (Verify persistence): Get the concept again
+    get_response = await async_client.get(f"{CONCEPTS_ENDPOINT}{element_id}")
+    assert get_response.status_code == status.HTTP_200_OK
+    final_concept_data = get_response.json()
+
+    # Verify updated fields persisted
+    assert final_concept_data["description"] == update_payload["description"]
+    assert final_concept_data["confidence"] == update_payload["confidence"]
+    assert final_concept_data["stability"] == update_payload["stability"]
+    # Verify unchanged field persisted
+    assert final_concept_data["name"] == initial_data["name"]
+
+
+@pytest.mark.anyio
+async def test_update_concept_not_found(async_client: AsyncClient):
+    """Test patching a concept with an element ID that does not exist."""
+    # Arrange: Use a plausible but non-existent element ID format
+    non_existent_id = "5:FakeUpdate:" + str(uuid.uuid4())
+    update_payload = {"description": "This should not be applied"}
+
+    # Act: Attempt to patch the non-existent concept
+    response = await async_client.patch(
+        f"{CONCEPTS_ENDPOINT}{non_existent_id}", json=update_payload
+    )
+
+    # Assert: Check for 404 Not Found status
+    assert response.status_code == status.HTTP_404_NOT_FOUND 
