@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from neo4j import AsyncDriver, AsyncResult, Record, AsyncTransaction, exceptions as neo4j_exceptions, AsyncSession
 from pydantic import ValidationError
 from typing import List, Optional, Union
@@ -6,10 +6,11 @@ import traceback
 import functools
 
 from src.db.neo4j_driver import get_db
-from src.models.concept import Concept
+from src.models.concept import Concept, ConceptCreate, ConceptResponse
 from src.models.path import PathResponse
 from src.utils.cypher_loader import load_query
 from src.models.relationship import RelationshipInfo, TemporalRelationshipInfo, SpatialRelationshipInfo
+from src.validation.kantian_validator import KantianValidator, KantianValidationError
 
 router = APIRouter()
 
@@ -456,3 +457,152 @@ async def get_spatial_relationships(
         raise HTTPException(status_code=500, detail="Internal error processing spatial results.")
 
 # --- End of Merged Routes ---
+
+# --- ADD THE MISSING POST ENDPOINT ---
+@router.post(
+    "/",
+    response_model=ConceptResponse, # Use your actual response model
+    status_code=status.HTTP_201_CREATED, # Standard for successful creation
+    summary="Create a New Concept",
+    description="Creates a new concept node in the knowledge graph after validation.",
+    tags=["Concepts"] # Add tag here if you want it grouped separately or keep it implicit
+)
+async def handle_create_concept(
+    concept_in: ConceptCreate, # Input data model
+    session: AsyncSession = Depends(get_db)
+    # Add dependency injection for your service if applicable
+    # concept_service: ConceptService = Depends(get_concept_service)
+):
+    """Handles the creation of a new concept."""
+    try:
+        # 1. Perform Kantian Validation (Pydantic validation already done)
+        KantianValidator.validate_concept(concept_in.model_dump()) # Use model_dump()
+
+        # 2. Call Service Layer or Direct DB Interaction
+        # Example: Directly executing a CREATE query
+        # NOTE: Ensure your CREATE query sets all required properties (id, name, timestamp, stability, confidence etc.)
+        # You might need a dedicated 'createConcept' query template
+        create_query = """
+            CREATE (c:Concept {
+                name: $name,
+                description: $description,
+                quality: $quality,
+                modality: $modality,
+                stability: $stability,
+                confidence: $confidence,
+                creation_timestamp: datetime(),
+                id: randomUUID()
+            })
+            RETURN c { .*, id: c.id, elementId: elementId(c) } AS concept
+        """
+        parameters = concept_in.model_dump()
+        # Add default values if not provided and required by DB
+        parameters.setdefault('stability', 'ephemeral')
+        parameters.setdefault('confidence', 0.5)
+        parameters.setdefault('description', None)
+        parameters.setdefault('quality', None)
+        parameters.setdefault('modality', None)
+
+
+        async def transaction_work(tx: AsyncTransaction, query: str, params: dict):
+            result: AsyncResult = await tx.run(query, params)
+            record: Optional[Record] = await result.single()
+            summary = await result.consume()
+            if record is None or summary.counters.nodes_created != 1:
+                 raise RuntimeError("Concept creation failed in database.")
+            # Ensure the returned data matches ConceptResponse structure
+            # Neo4j driver returns dict directly if using RETURN c { ... }
+            return record.data()['concept']
+
+        created_concept_data = await session.execute_write(
+            lambda tx: transaction_work(tx, create_query, parameters)
+        )
+
+        # Validate the data coming back from the DB against the response model
+        return ConceptResponse.model_validate(created_concept_data)
+
+    except KantianValidationError as exc:
+        # Let the exception handler in main.py catch this
+        raise exc
+    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
+        print(f"ERROR (Create Concept): Database error - {db_err}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error during concept creation: {db_err.code}")
+    except ValidationError as pydantic_err: # Error validating DB result
+         print(f"ERROR (Create Concept): Pydantic validation failed for DB result: {pydantic_err}")
+         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing created concept.")
+    except Exception as e:
+        print(f"ERROR (Create Concept): Unexpected error - {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during concept creation.")
+
+# --- NEW Endpoint: Get Concept by Element ID ---
+@router.get(
+    "/{element_id}", # Use element_id as the path parameter
+    response_model=ConceptResponse,
+    summary="Get Concept by Element ID",
+    description="Retrieves the details of a single concept using its Neo4j element ID.",
+    tags=["Concepts"],
+    responses={
+        404: {"description": "Concept not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+async def get_concept_by_element_id(
+    element_id: str = Path(..., title="Element ID", description="The Neo4j element ID of the concept to retrieve."),
+    session: AsyncSession = Depends(get_db)
+):
+    """Handles fetching a single concept by its element ID."""
+    # Define the query (consider loading from a file if preferred)
+    # Ensure the RETURN projection matches the ConceptResponse model fields/aliases
+    get_by_id_query = """
+        MATCH (c:Concept)
+        WHERE elementId(c) = $element_id
+        RETURN c {
+            .*,                 // Include all node properties
+            id: c.id,          // Explicitly include custom ID if needed
+            elementId: elementId(c) // Always include elementId
+            // Ensure 'confidence' property is included for the model alias
+        } AS concept
+        LIMIT 1
+    """
+    parameters = {"element_id": element_id}
+    endpoint_name = f"GetConceptByID:{element_id}"
+
+    try:
+        async def transaction_work(tx: AsyncTransaction, query: str, params: dict):
+            result: AsyncResult = await tx.run(query, params)
+            # Use strict=False as we want to handle None explicitly for 404
+            record: Optional[Record] = await result.single(strict=False)
+            # No need to consume here if we only expect one record or None
+            return record.data() if record else None # Return data dict or None
+
+        # Using execute_read as we are just reading
+        concept_data = await session.execute_read(
+            lambda tx: transaction_work(tx, get_by_id_query, parameters)
+        )
+
+        if concept_data is None:
+            print(f"INFO ({endpoint_name}): Concept not found.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Concept not found")
+
+        # Data should be in {'concept': {details}} structure due to RETURN alias
+        if 'concept' not in concept_data:
+             print(f"ERROR ({endpoint_name}): Query did not return expected 'concept' key. Data: {concept_data}")
+             raise HTTPException(status_code=500, detail="Internal server error processing concept data.")
+
+        # Validate the data against the response model
+        validated_concept = ConceptResponse.model_validate(concept_data['concept'])
+        return validated_concept
+
+    except neo4j_exceptions.Neo4jError as e:
+        print(f"Neo4jError in {endpoint_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error in {endpoint_name}: {e.code}")
+    except ValidationError as val_err: # Error validating DB result
+         print(f"ERROR ({endpoint_name}): Pydantic validation failed for DB result: {val_err}")
+         raise HTTPException(status_code=500, detail="Internal server error processing retrieved concept.")
+    except HTTPException as http_err:
+        raise http_err # Re-raise known HTTP exceptions (like the 404)
+    except Exception as e:
+        print(f"Unexpected error in {endpoint_name}: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error in {endpoint_name}")

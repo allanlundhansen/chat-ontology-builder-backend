@@ -3,10 +3,13 @@ import os
 import sys
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession
+from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession, GraphDatabase, Driver, Session
 import pytest_asyncio
 from typing import AsyncGenerator, Optional, AsyncIterator
 from httpx import AsyncClient, ASGITransport
+from fastapi.testclient import TestClient
+# Make sure anyio is installed (it should be a dependency of httpx)
+# import anyio
 
 # Add project root for imports
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -40,6 +43,58 @@ NEO4J_TEST_PASSWORD = os.getenv("NEO4J_TEST_PASSWORD")
 # Define the database name to use for tests (can also be from .env if needed)
 DEFAULT_DB_NAME = os.getenv("NEO4J_TEST_DATABASE", "neo4j")
 # --- End Test DB Credentials ---
+
+# Global variable to hold the driver instance for the test session
+_test_driver: Driver | None = None
+
+def get_neo4j_test_driver() -> Driver:
+    """Initializes and returns a Neo4j Driver instance for the TEST database."""
+    global _test_driver
+    if _test_driver is None:
+        uri = os.getenv("NEO4J_TEST_URI")
+        user = os.getenv("NEO4J_TEST_USER")
+        password = os.getenv("NEO4J_TEST_PASSWORD")
+        if not uri or not user or not password:
+            pytest.fail("Missing Neo4j Test DB credentials in .env file (NEO4J_TEST_URI, NEO4J_TEST_USER, NEO4J_TEST_PASSWORD)", pytrace=False)
+
+        try:
+            print(f"\nAttempting to connect to Neo4j Test DB: {uri}")
+            _test_driver = GraphDatabase.driver(uri, auth=(user, password))
+            _test_driver.verify_connectivity()
+            print("Successfully connected to Neo4j Test DB.")
+        except Exception as e:
+            pytest.fail(f"Failed to connect or verify connectivity to Neo4j Test DB: {e}", pytrace=False)
+
+    return _test_driver
+
+@pytest.fixture(scope="session", autouse=True)
+def manage_neo4j_driver(request):
+    """Pytest fixture to initialize and close the Neo4j driver for the test session."""
+    driver = get_neo4j_test_driver() # Ensure driver is initialized
+    yield # Run tests
+    global _test_driver
+    if _test_driver:
+        print("\nClosing Neo4j Test DB driver.")
+        _test_driver.close()
+        _test_driver = None
+
+@pytest_asyncio.fixture(scope="function")
+async def neo4j_async_session(async_test_driver: AsyncDriver) -> AsyncGenerator[AsyncSession, None]:
+    """Provides an async session to the test database."""
+    print("\n--- Creating Async Test Session (Function Scope) ---")
+    async with async_test_driver.session(database=DEFAULT_DB_NAME) as session:
+        yield session
+    print("--- Closed Async Test Session (Function Scope) ---")
+
+@pytest.fixture(scope="function")
+def client(app: FastAPI): # Add type hint for app fixture if not already present
+    """
+    Provides a FastAPI TestClient instance with explicit asyncio backend.
+    """
+    # Use a context manager to ensure lifespan events (startup/shutdown) are run
+    # Explicitly set the backend to 'asyncio'
+    with TestClient(app, backend="asyncio") as test_client:
+        yield test_client
 
 # --- Fixtures ---
 
@@ -89,7 +144,7 @@ def app() -> FastAPI:
     print("\nDEBUG [conftest - app - SESSION SCOPE]: Providing FastAPI app instance.") # Update log scope
     yield application # Yield the imported app instance
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def manage_db_state(async_test_driver: AsyncDriver):
     """
     ASYNC: Clears the test database BEFORE the test session starts. (Session Scope)

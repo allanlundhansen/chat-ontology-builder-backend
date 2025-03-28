@@ -45,7 +45,7 @@ async def test_get_concepts_by_confidence_high_threshold(load_sample_data, async
     assert isinstance(data, list)
     assert len(data) > 0 # Assuming sample data has concepts with high confidence
     for concept in data:
-        assert concept.get("confidence_score", 0) >= 0.9
+        assert concept.get("confidence", 0) >= 0.9
     # ... other specific assertions ...
 
 @pytest.mark.anyio

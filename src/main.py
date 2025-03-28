@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from contextlib import asynccontextmanager
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 # Import the router and driver functions
-from src.api.v1.endpoints import categories, concepts
+from src.api.v1.endpoints import categories, concepts, relationships
 from src.db.neo4j_driver import get_async_driver, close_async_driver
+from src.validation.kantian_validator import KantianValidationError # Adjust import path if needed
 
 # Use lifespan context manager for startup/shutdown events
 @asynccontextmanager
@@ -50,11 +53,48 @@ async def health_check():
 app.include_router(categories.router, prefix="/api/v1", tags=["Categories"])
 
 # Mount concepts router under /api/v1/concepts
-app.include_router(concepts.router, prefix="/api/v1/concepts")
+app.include_router(concepts.router, prefix="/api/v1/concepts", tags=["Concepts"])
 
-# Mount relationships router also under /api/v1/concepts
-# Its internal paths start with /{concept_id}/...
-# app.include_router(relationships.router, prefix="/api/v1/concepts", tags=["Relationships"]) # REMOVE THIS LINE
+# Mount relationships router under /api/v1/relationships
+app.include_router(
+    relationships.router,
+    prefix="/api/v1/relationships",
+    tags=["Relationships"]
+)
+
+# Add Exception Handlers
+
+@app.exception_handler(KantianValidationError)
+async def kantian_validation_exception_handler(request: Request, exc: KantianValidationError):
+    """
+    Handles custom validation errors defined by KantianValidator.
+    Returns a standard 422 Unprocessable Entity response.
+    """
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": [{
+                # Use field name from the exception if available
+                "loc": ["body", exc.field] if exc.field else ["body"],
+                "msg": str(exc),
+                "type": "kantian_validation_error" # Specific type for clarity
+            }]
+        },
+    )
+
+@app.exception_handler(RequestValidationError)
+async def fastapi_validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handles Pydantic validation errors.
+    Formats the response to be consistent with FastAPI's default or your desired structure.
+    """
+    # You can customize the formatting here if needed,
+    # otherwise, FastAPI provides a default handler.
+    # This example shows how to return the standard Pydantic error structure.
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
 
 # Remove the __main__ block if you always run with uvicorn command
 # if __name__ == "__main__":

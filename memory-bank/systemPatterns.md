@@ -156,6 +156,8 @@ While our computational implementation necessarily simplifies this model, we mai
 - **Query Templates**: Pre-defined Cypher query templates (`.cypher` files) for common knowledge graph operations, executed by the application layer. (Note: APOC custom procedures are unavailable).
 - **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
 - **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
+- **Validation Layer**: New validation service enforces Quality/Modality constraints and relationship rules before database writes
+- **Deprecation Warnings**: API responses for Concept endpoints now include warnings about Phase 2 modality migration
 
 ### Containerization and Deployment
 
@@ -170,6 +172,7 @@ While our computational implementation necessarily simplifies this model, we mai
 - **Unit Tests**: For individual components
 - **Integration Tests**: For module interactions
 - **Cognitive Tests**: Specialized tests for evaluating reasoning capabilities
+- **Validation Test Suite**: New pattern of "constraint violation" tests ensuring invalid data gets rejected at API boundaries
 
 ### CI/CD Pipeline
 

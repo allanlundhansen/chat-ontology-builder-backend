@@ -1,78 +1,88 @@
-# Progress
+# Progress - Project: KantAI Backend
 
-## Current Status
-
-The KantAI Backend project is transitioning from the planning phase to initial implementation. The first component - the Kantian Category Structure Knowledge Graph - has been designed and implemented as the foundation for the Understanding Module.
+*Last Updated: (Current Date)*
 
 ## What Works
 
-- Project conceptual architecture has been designed
-- Theoretical mapping of Kantian concepts to computational components is complete
-- Documentation of system requirements and goals is in place
-- **Neo4j schema for the Kantian Category Structure has been implemented**, including:
-  - Four primary Kantian categories (Quantity, Quality, Relation, Modality) with subcategories
-  - Concept node structure with properties and constraints (**Note**: Value constraints for `quality`/`modality` enforced at application level)
-  - Relationship types based on Kantian categories
-  - Query templates (`.cypher` files) for common operations (Note: Not stored procedures due to platform limitations)
-  - Sample data for testing and demonstration
-  - Validation queries to ensure correctness (updated to reflect direct query execution)
+### Core Setup
+- Project structure initialized (FastAPI, Poetry).
+- Neo4j database connection established (via `neo4j_driver` utility).
+- Asynchronous Neo4j driver configuration is functional.
+- Basic FastAPI application setup is running.
+- Logging is configured.
+- Environment variables (`.env`) are used for configuration.
+
+### API Layer
+- **Concepts (`/api/v1/concepts`)**:
+  - `POST /`: Endpoint implemented for creating concepts. Handles basic validation via Pydantic models (`ConceptCreate`, `ConceptResponse`). Returns created concept data.
+  - `GET /`: Endpoint implemented for retrieving a list of concepts. Supports `limit` and `confidence_threshold` query parameters. Returns a list of concept data.
+  - `GET /{element_id}`: Endpoint implemented for retrieving a single concept by its element ID. Returns concept data or 404 if not found.
+- **Relationships (`/api/v1/relationships`)**:
+  - `POST /`: Endpoint implemented for creating relationships. Handles validation, including `spatial_unit` constraints. Returns created relationship data.
+
+### Database Layer
+- Cypher queries for creating concepts and relationships (including spatial properties) are functional within the API endpoints.
+- Cypher queries for retrieving concepts (all with filtering, and by element ID) are functional within the API endpoints.
+- Basic node structure for Concepts and Categories exists.
+- Constraints for `spatial_unit` on relationships are handled at the application level.
+
+### Testing
+- Test environment setup with `pytest` and `pytest-asyncio`/`anyio`.
+- Fixtures for asynchronous Neo4j test sessions (`neo4j_async_session`) are working.
+- Fixtures for creating prerequisite data (e.g., `test_concepts_for_rels`) are functional (after async fix).
+- Integration tests for `POST /concepts` are passing.
+- Integration tests for `GET /concepts` (list view) are passing.
+- Integration tests for `GET /concepts/{element_id}` (detail view, including 404) are passing.
+- Integration tests for `POST /relationships` focusing on validation errors (e.g., missing/invalid `spatial_unit`) are passing.
+- Test failures related to fixture lookups, assertion mismatches (`confidence` vs `confidence_score`), and async event loops have been identified and resolved.
 
 ## What's Left to Build
 
-### Core Components (In Progress)
-- Understanding Module (Neo4j GraphDB) - **Schema Implemented**
-  - Integration with remaining backend services
-  - API layer for external access
-- Imagination Module (Productive and Reproductive) - Not Started
-- Judgment Module (Determinant and Reflective) - Not Started
-  - Includes plan for replacing property-based modality with judgment-based representation
-  - Requires migration strategy for existing modality data
-- Reason Module (Active Inference) - Not Started
-- Action/Sense Layer (LLM Integration) - Not Started
-- Ethical Oversight Module - Not Started
+### API Layer
+- **Concepts (`/api/v1/concepts`)**:
+  - `UPDATE` (`PUT` or `PATCH`) endpoint.
+  - `DELETE` endpoint.
+- **Relationships (`/api/v1/relationships`)**:
+  - `GET /` (list relationships).
+  - `GET /{element_id}` (get specific relationship).
+  - `UPDATE` (`PUT` or `PATCH`) endpoint.
+  - `DELETE` endpoint.
+- **Categories (`/api/v1/categories`)**:
+  - All CRUD endpoints.
+- **Handling `INSTANCE_OF`**: Define how concepts are linked to Kantian subcategories (Quantity/Relation) via the API.
+- **Advanced Querying**: Expose more complex graph traversal queries via API endpoints (PRD Task 4).
 
-### Infrastructure (In Progress)
-- Development environment setup - **Basic structure created**
-- CI/CD pipeline - Not Started
-- Containerization with Docker - Not Started
-- Kubernetes deployment - Not Started
-- Monitoring and logging - Not Started
+### Database Layer
+- Cypher queries for `UPDATE` and `DELETE` operations on concepts and relationships.
+- Implementation of `INSTANCE_OF` relationship creation/management.
+- Queries for advanced traversal (causal, temporal, spatial, category-based).
+- Finalize indexing strategy based on query patterns.
 
-### API Layer (Not Started)
-- RESTful API endpoints
-- WebSocket support
-- Authentication and authorization
-- Documentation with OpenAPI/Swagger
+### Testing
+- Integration tests for all remaining CRUD endpoints (Concepts, Relationships, Categories).
+- Tests for `INSTANCE_OF` relationship management.
+- Tests for advanced query endpoints.
+- Address skipped tests (requires specific data setup or fixture refactoring).
+- Potentially more unit tests for specific services or logic.
 
-### Integration (Not Started)
-- Connection with Chat Ontology Builder frontend
-- External LLM provider integration
-- Vector database integration
+### Documentation & Other
+- Full OpenAPI/Swagger documentation generation.
+- Formal schema documentation (PRD Task 5).
+- SHACL constraint implementation (Future phase).
+- Integration with other modules (Logic Tensor Networks, General Logic) (Future phases).
 
-### Testing (In Progress)
-- Unit tests for individual components - **Basic validation queries implemented for Neo4j schema**
-- Integration tests for module interactions - Not Started
-- Cognitive tests for reasoning capabilities - Not Started
-- Performance and load testing - Not Started
+## Known Issues & Blockers
 
-## Known Issues
-
-As the project is still in early implementation, there are a few known technical challenges:
-
-1. **Neural-Symbolic Integration**: The bidirectional translation between neural embeddings and symbolic representations requires careful design
-2. **LLM Reliability**: Ensuring consistent and accurate outputs from LLMs will be challenging
-3. **Graph Performance**: Neo4j query performance for complex operations needs optimization
-4. **Concept Formation**: Implementing reflective judgment for novel inputs will require sophisticated algorithms
-5. **Modality Migration**: The planned transition from property-based to judgment-based modality in Phase 2 introduces significant migration complexity.
-6. **Data Integrity Risk (Quality/Modality)**: Lack of database-level constraints for `quality`/`modality` values (due to AuraDB limitations) requires strict application-level validation; risk of inconsistent data if validation is bypassed.
-7. **Ethical Framework**: Translating Kantian ethics into computational constraints is conceptually challenging
+- **Skipped Tests**: Several tests in `tests/api/v1/test_concepts.py` are skipped due to dependencies on specific, known element IDs or fixture conflicts (`test_list_concepts_empty`). Requires configuration or test data setup. (Low Priority for now).
+- **Philosophical Simplifications**: The current representation of Quality/Modality as properties is a pragmatic simplification. See `Philosophical-Considerations-Category-Implementation.md`. (Ongoing awareness).
 
 ## Next Milestones
 
 1. **Understanding Module API Development** (Target: Immediate)
-   - Create RESTful API endpoints for the Knowledge Graph
+   - Implement remaining RESTful API endpoints (GET, PUT, DELETE)
    - Implement authentication and authorization
-   - Create documentation
+   - Create API documentation (Swagger/OpenAPI)
+   - Add comprehensive API tests (success cases, edge cases)
 
 2. **SHACL Constraints Implementation** (Target: Soon)
    - Add SHACL constraints to enforce Kantian categorical rules

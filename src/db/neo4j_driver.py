@@ -1,8 +1,10 @@
 import os
-from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession # Import Async types
+from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession, exceptions as neo4j_exceptions # Import Async types and exceptions
 from dotenv import load_dotenv
 from typing import Optional, AsyncGenerator # Added typing
 import traceback # Add traceback import
+from contextlib import asynccontextmanager
+from fastapi import HTTPException, status
 
 # Load environment variables from .env file
 load_dotenv()
@@ -58,28 +60,39 @@ async def close_async_driver():
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency injector that yields an AsyncSession using the main application driver.
+    Handles session acquisition errors, lets endpoint errors propagate.
+    Ensures session is closed even if endpoint raises an error.
     """
-    print("DEBUG: Entering get_db dependency") # ADDED
-    global NEO4J_DATABASE
-    main_driver: Optional[AsyncDriver] = None # Initialize as Optional
+    main_driver: Optional[AsyncDriver] = None
+    session: Optional[AsyncSession] = None
     try:
-        print("DEBUG: Calling await get_async_driver()") # ADDED
         main_driver = await get_async_driver()
-        print(f"DEBUG: Got main_driver: {main_driver}") # ADDED
-        # Use the database specified in env or default for the application
-        print(f"DEBUG: Attempting 'async with main_driver.session(database={NEO4J_DATABASE})'") # ADDED
-        async with main_driver.session(database=NEO4J_DATABASE) as session:
-            print(f"DEBUG: Acquired session: {session}") # ADDED
-            yield session
-            print("DEBUG: Yielded session scope finished.") # ADDED
-    except Exception as e:
-        print(f"ERROR caught in get_db: {type(e).__name__}: {e}") # Log type and message of original error
-        traceback.print_exc() # ADDED - Print original traceback here too
-        # Raising RuntimeError as before, but now we have better logs
-        raise RuntimeError(f"Could not get database session from main driver: {e}") from e
+        # Use the database specified in env or default
+        db_name = NEO4J_DATABASE # Use the global/env var consistently
+        print(f"DEBUG: Attempting to acquire session for database '{db_name}'...")
+        session = main_driver.session(database=db_name)
+        print(f"DEBUG: Acquired session: {session}")
+        yield session # Provide session to the endpoint
+
+    except (neo4j_exceptions.ServiceUnavailable, neo4j_exceptions.AuthError, RuntimeError) as e:
+        # Catch specific driver/connection/init errors
+        print(f"ERROR: Failed to acquire DB session dependency: {type(e).__name__}: {e}")
+        # Raise HTTPException so FastAPI handles it, preventing endpoint execution
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Could not get database session: {e}"
+        ) from e
     finally:
-        # This block might not be reached if yield fails, but good practice
-        print(f"DEBUG: get_db dependency finished (session automatically closed by 'async with').")
+        # This block executes whether the 'yield' completes or raises an exception
+        if session:
+            try:
+                await session.close()
+                print("DEBUG: Neo4j session closed by get_db finally block.")
+            except Exception as close_err:
+                # Log error but don't overshadow original exception if one occurred
+                print(f"WARN: Failed to close session cleanly in get_db finally: {close_err}")
+        else:
+             print("DEBUG: No session to close in get_db finally block.")
 
 # Note: The test environment uses its own driver instance created in conftest.py
 # This file now correctly provides the async driver and `get_db` dependency for the main app.

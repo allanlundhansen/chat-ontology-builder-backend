@@ -88,6 +88,8 @@ docker-compose up -d
 
 ### Platform Limitations Encountered
 - **Neo4j AuraDB Constraints/Triggers/Procedures**: The current AuraDB environment (Neo4j 5.x) lacks support for direct "enum-style" value constraints, conditional property existence constraints (e.g., require `spatial_unit` only if `distance` exists), and does not have APOC triggers (`apoc.trigger.install`) or the procedure creation procedure (`apoc.custom.asProcedure`) enabled/available. This necessitates application-level validation for specific property values (e.g., `Concept.quality`, `Concept.modality`), conditional relationship property rules, and requires query templates to be executed by the application rather than stored as database procedures.
+- Added workaround for Neo4j constraints using KantianValidator service
+- Implemented application-level enforcement of conditional `spatial_unit` requirement
 
 ## Dependencies
 

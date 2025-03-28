@@ -1,65 +1,83 @@
-# Active Context
+# Active Context - Project: KantAI Backend
+
+*Last Updated: (Current Date)*
 
 ## Current Work Focus
 
-We have begun implementation of the KantAI Backend, with current focus on:
+The primary focus remains on implementing the foundational **Phase 1** requirements outlined in `01-Kantian-Category-Structure-KG.md`. Specifically, we are building out the **API layer** using FastAPI and ensuring interactions with the Neo4j database are correct and tested.
 
-1. **Understanding Module Implementation**: 
-   - ✅ Implemented Neo4j schema for the Kantian Category Structure Knowledge Graph
-   - ✅ Created concept node structure with properties and constraints
-   - ✅ Defined relationship types based on Kantian categories
-   - ✅ Developed query templates for common operations
-   - ✅ Created sample data for testing and demonstration
-   - ✅ Implemented validation queries to ensure correctness
-   - Next: Developing API layer for external access (Note: API design should anticipate Phase 2 modality transition and include application-level validation for `quality`/`modality` properties **and the conditional `spatial_unit` requirement on `SPATIALLY_RELATES_TO` relationships**)
+### API Layer
+- **Concepts Endpoint (`/api/v1/concepts`)**:
+  - `POST /`: Implemented and tested (basic creation, validation).
+  - `GET /`: Implemented and tested (retrieval with filtering).
+  - `GET /{element_id}`: Implemented and tested (retrieval by ID, 404 handling).
+  - `PUT / PATCH /{element_id}`: **Next Up**
+  - `DELETE /{element_id}`: **Next Up**
+- **Relationships Endpoint (`/api/v1/relationships`)**:
+  - `POST /`: Implemented and tested (basic creation, spatial unit validation).
+  - `GET /`: Not started.
+  - `GET /{element_id}`: Not started.
+  - `PUT / PATCH /{element_id}`: Not started.
+  - `DELETE /{element_id}`: Not started.
+- **Categories Endpoint (`/api/v1/categories`)**: Not started.
 
-2. **Architecture Implementation**: Establishing the initial framework based on Kantian principles
-   - Next modules to implement: General Logic Module and SHACL Constraints
+### Database Layer (Neo4j)
+- Core schema based on Kantian categories exists.
+- Queries for creating concepts and relationships are implemented within API endpoints.
+- Queries for retrieving concepts (all and by ID) are implemented.
+- Indexing is partially implemented.
 
-3. **Development Environment**: Setting up the core development infrastructure
-   - ✅ Created basic directory structure for implementation
-   - ✅ Established pattern for direct Neo4j/Cypher implementation
-   - Next: Setting up containerization and CI/CD
-
-4. **API Design**: Planning the service interfaces
-   - Next: Implementing RESTful API endpoints for the Knowledge Graph
+### Testing
+- Integration tests for `POST /concepts`, `GET /concepts`, `GET /concepts/{id}`, and `POST /relationships` are implemented and passing.
+- Unit tests for specific validation logic exist.
+- Test fixtures for Neo4j sessions (async) are set up.
+- Specific test failures related to fixtures, assertions, and async loops have been resolved.
 
 ## Recent Changes
 
-- Created Neo4j database schema for the Kantian Category Structure
-- Implemented all four Kantian categories (Quantity, Quality, Relation, Modality) with subcategories
-- Defined concept structure with properties, constraints, and indices
-- Implemented relationship types corresponding to Kantian categories
-- Created query templates (Cypher scripts) for common operations (Note: APOC custom procedures like `apoc.custom.asProcedure` are unavailable in the current environment, so templates will be executed by the application layer).
-- Developed sample data and validation queries
+- **Implemented `GET /api/v1/concepts` Endpoint**: Added functionality to retrieve a list of concepts, including filtering by `limit` and `confidence_threshold`. Added integration tests.
+- **Implemented `GET /api/v1/concepts/{element_id}` Endpoint**: Added functionality to retrieve a single concept by its element ID. Implemented 404 handling for non-existent IDs. Added integration tests.
+- **Resolved Test Failures**:
+  - Fixed `FixtureLookupError` for `neo4j_test_session` in `test_validation_errors.py` by updating the `test_concepts_for_rels` fixture to use `neo4j_async_session`.
+  - Corrected `AssertionError` in `test_create_concept_success` by changing assertion from `confidence_score` to `confidence`.
+  - Corrected `AssertionError` in `test_get_concepts_by_confidence_high_threshold` by changing assertion from `confidence_score` to `confidence`.
+  - Fixed `RuntimeError: Task ... attached to a different loop` in `test_get_concept_by_id_not_found` by converting the test to async and using `async_client`.
+- **Updated Documentation**: Reflected implementation progress in `01-Kantian-Category-Structure-KG.md`.
+
+## Open Questions & Decisions
+
+- **UPDATE Method**: Decide between `PUT` (replace) vs. `PATCH` (partial update) for concept and relationship modifications. `PATCH` is generally preferred for flexibility.
+- **Skipped Tests**: Prioritize addressing skipped tests? (e.g., tests requiring specific known element IDs, `test_list_concepts_empty`).
+- **Error Handling**: Refine error handling and response formats for consistency.
+- **INSTANCE_OF Relationship**: How should the `INSTANCE_OF` relationship (Task 2/3 in PRD) be managed via the API? Likely needs dedicated endpoints or specific handling within concept/category endpoints.
 
 ## Next Steps
 
-1. **Understanding Module API Layer**:
-   - Create FastAPI endpoints for knowledge graph operations
-   - Implement authentication and authorization
-   - Develop Swagger/OpenAPI documentation
+### Immediate
+1.  **Commit Changes**: Commit the implemented GET endpoints and test fixes.
+2.  **Update Documentation**: Apply these updates to `activeContext.md` and `progress.md`.
+3.  **Decide Next API Task**: Choose between implementing Concept `UPDATE`, Concept `DELETE`, addressing skipped tests, or moving to Relationship CRUD.
 
-2. **SHACL Constraints Implementation**:
-   - Implement SHACL constraints to enforce Kantian categorical rules
-   - Create validation mechanisms for data integrity
-   - Develop test suite for constraint validation
+### API Layer
+- Implement `UPDATE` (`PUT`/`PATCH`) endpoint for concepts.
+- Implement `DELETE` endpoint for concepts.
+- Implement `GET`, `UPDATE`, `DELETE` endpoints for relationships.
+- Implement endpoints for categories.
 
-3. **General Logic Module**:
-   - Implement Evans' input/output logic formalism
-   - Create representation of judgment forms
-   - Build connection with the Understanding Module
-   - Plan for modality migration (property-based to judgment-based) as part of Phase 2
+### Database Layer
+- Implement Cypher queries for update and delete operations.
+- Implement queries for managing `INSTANCE_OF` relationships.
+- Develop queries for navigating semantic, temporal, and spatial relationships as per PRD Task 4.
 
-4. **Action/Sense Layer**:
-   - Implement connection to LLM providers
-   - Develop concept extraction pipeline
-   - Create integration with Knowledge Graph
+### Testing
+- Add integration tests for `UPDATE` and `DELETE` endpoints for concepts and relationships.
+- Address skipped tests.
+- Potentially add more unit tests for complex business logic if needed.
 
-5. **Development Infrastructure**:
-   - Set up Docker containers for Neo4j and backend services
-   - Implement CI/CD pipeline
-   - Create monitoring and logging infrastructure
+### Documentation
+- Continue updating Memory Bank files as progress is made.
+- Generate/update OpenAPI (Swagger) documentation.
+- Document schema and queries more formally (PRD Task 5).
 
 ## Active Decisions and Considerations
 
@@ -69,9 +87,20 @@ We have begun implementation of the KantAI Backend, with current focus on:
 4. **Modality Representation Strategy**: Decided to replace the Phase 1 property-based modality on Concept nodes with a judgment-based representation in Phase 2, rather than maintaining coexistence. This involves a planned migration.
 5. **Quality/Modality Value Validation**: Due to limitations with Neo4j 5.x constraint syntax and the unavailability of APOC triggers in the current AuraDB environment, the validation ensuring `quality` and `modality` properties contain only the allowed Kantian values (or NULL) will be enforced at the **application level**.
 6. **Conditional Relationship Property Validation**: Similarly, the rule requiring `spatial_unit` when `distance` is present on `SPATIALLY_RELATES_TO` relationships cannot be enforced via standard constraints and will also be handled at the **application level**.
-7. **API Path Structure (Phase 1):** Decided to use `/api/v1/concepts` as the base path for Understanding Module endpoints (including concept retrieval and concept-specific relationship queries). A separate path (e.g., `/api/v1/logic`) will be used for the General Logic module later to maintain clear boundaries, addressing potential ambiguity of the term "concepts".
+7. **API Path Structure (Phase 1):** Decided to use `/api/v1/concepts` and `/api/v1/relationships` as base paths for Understanding Module creation/retrieval endpoints. Concept-specific relationship queries remain under `/api/v1/concepts/{id}/...`.
 8. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
 9. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
+10. **Validation Implementation Strategy**: Decided to implement validation as a centralized service (`KantianValidator`). **Confirmed working via integration tests for API endpoints.**
+
+## Current Challenges
+
+1. **Query Optimization**: Ensuring efficient performance for complex graph queries
+2. **Concept Classification**: Determining the right level of granularity for concept categorization
+3. **Relationship Constraints**: Implementing proper constraints/validation for all relationship types (Spatial done).
+4. **Integration Strategy**: Planning the connection between the Knowledge Graph and other modules
+5. **Modality Migration Complexity**: Ensuring a smooth and accurate migration from property-based to judgment-based modality in Phase 2.
+6. **Application-Level Validation Consistency**: Validation implemented and tested via API; need to ensure consistency if other data entry points are added later. **(Risk Mitigated for API)**
+7. **Testing Approach**: Initial validation tests successful; need broader coverage (success cases, other relationship types, read/update/delete operations).
 
 ## Current Challenges
 
