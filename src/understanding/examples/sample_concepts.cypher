@@ -3,7 +3,7 @@
 
 // Create a substance concept "Ball" and an accident concept "Red"
 CREATE (ball:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Ball", 
   description: "A spherical object used in games and sports",
   confidence_score: 1.0,
@@ -14,10 +14,10 @@ CREATE (ball:Concept {
   quality: "Reality",
   // Modality property - Existence/Non-existence represents existence
   modality: "Existence/Non-existence"
-})
+});
 
 CREATE (red:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Red", 
   description: "A color at the long wavelength end of the visible spectrum",
   confidence_score: 1.0,
@@ -30,7 +30,7 @@ CREATE (red:Concept {
 
 // Create heat and expansion concepts for causality example
 CREATE (heat:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Heat", 
   description: "Thermal energy transferred from one system to another",
   confidence_score: 1.0,
@@ -39,10 +39,10 @@ CREATE (heat:Concept {
   creation_timestamp: datetime(),
   quality: "Reality",
   modality: "Existence/Non-existence"
-})
+});
 
 CREATE (expansion:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Expansion", 
   description: "Increase in volume or size of a material",
   confidence_score: 1.0,
@@ -55,7 +55,7 @@ CREATE (expansion:Concept {
 
 // Create earth and moon concepts for community (reciprocal) example
 CREATE (earth:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Earth", 
   description: "The third planet from the Sun in the Solar System",
   confidence_score: 1.0,
@@ -64,10 +64,10 @@ CREATE (earth:Concept {
   creation_timestamp: datetime(),
   quality: "Reality",
   modality: "Existence/Non-existence"
-})
+});
 
 CREATE (moon:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Moon", 
   description: "A natural satellite of Earth",
   confidence_score: 1.0,
@@ -80,7 +80,7 @@ CREATE (moon:Concept {
 
 // Create forest and tree concepts for totality and plurality examples
 CREATE (forest:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Forest", 
   description: "A large area covered chiefly with trees and undergrowth",
   confidence_score: 1.0,
@@ -89,10 +89,10 @@ CREATE (forest:Concept {
   creation_timestamp: datetime(),
   quality: "Reality",
   modality: "Existence/Non-existence"
-})
+});
 
 CREATE (tree:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Tree", 
   description: "A woody perennial plant with a single main stem",
   confidence_score: 1.0,
@@ -105,7 +105,7 @@ CREATE (tree:Concept {
 
 // Create concepts for temporal relationships example
 CREATE (lightning:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Lightning", 
   description: "Electric discharge in the atmosphere",
   confidence_score: 1.0,
@@ -114,10 +114,10 @@ CREATE (lightning:Concept {
   creation_timestamp: datetime(),
   quality: "Reality",
   modality: "Existence/Non-existence"
-})
+});
 
 CREATE (thunder:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Thunder", 
   description: "Sound caused by lightning",
   confidence_score: 1.0,
@@ -130,7 +130,7 @@ CREATE (thunder:Concept {
 
 // Create a concept with Negation quality
 CREATE (absence:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Absence", 
   description: "The state of being away or not present",
   confidence_score: 1.0,
@@ -143,7 +143,7 @@ CREATE (absence:Concept {
 
 // Create a concept with Limitation quality
 CREATE (horizon:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Horizon", 
   description: "The line where the earth meets the sky",
   confidence_score: 1.0,
@@ -156,7 +156,7 @@ CREATE (horizon:Concept {
 
 // Create concepts with different modalities
 CREATE (unicorn:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Unicorn", 
   description: "A mythical creature that resembles a horse with a single horn",
   confidence_score: 1.0,
@@ -165,10 +165,10 @@ CREATE (unicorn:Concept {
   creation_timestamp: datetime(),
   quality: "Reality",
   modality: "Possibility/Impossibility"
-})
+});
 
 CREATE (gravity:Concept {
-  id: apoc.create.uuid(), 
+  id: randomUUID(),
   name: "Gravity", 
   description: "The force that attracts two bodies toward each other",
   confidence_score: 1.0,

@@ -11,8 +11,7 @@ CREATE CONSTRAINT subcategory_name_exists IF NOT EXISTS FOR (s:Subcategory) REQU
 // --- Create/Ensure Core Structure using MERGE ---
 
 // Create/Ensure main category nodes
-MERGE (quantity:Category {name: "Quantity"})
-  ON CREATE SET quantity.description = "Deals with the extension of concepts";
+MERGE (quantity:Category {name: "Quantity"}) ON CREATE SET quantity.description = "Deals with the extension of concepts";
 MERGE (quality:Category {name: "Quality"})
   ON CREATE SET quality.description = "Deals with the content of concepts";
 MERGE (relation:Category {name: "Relation"})
@@ -21,8 +20,7 @@ MERGE (modality:Category {name: "Modality"})
   ON CREATE SET modality.description = "Deals with the relation of concepts to the faculty of cognition";
 
 // Create/Ensure Quantity subcategories
-MERGE (unity:Subcategory {name: "Unity"})
-  ON CREATE SET unity.description = "Concept of One";
+MERGE (unity:Subcategory {name: "Unity"}) ON CREATE SET unity.description = "Concept of One";
 MERGE (plurality:Subcategory {name: "Plurality"})
   ON CREATE SET plurality.description = "Concept of Many";
 MERGE (totality:Subcategory {name: "Totality"})

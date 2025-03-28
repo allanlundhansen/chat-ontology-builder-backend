@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 # Import the router and driver functions
 from src.api.v1.endpoints import categories, concepts
-from src.db.neo4j_driver import close_driver, get_driver
+from src.db.neo4j_driver import get_async_driver, close_async_driver
 
 # Use lifespan context manager for startup/shutdown events
 @asynccontextmanager
@@ -12,14 +12,16 @@ async def lifespan(app: FastAPI):
     print("Application startup...")
     try:
         # Initialize driver on startup to catch connection errors early
-        get_driver()
+        await get_async_driver()
+        print("Neo4j driver initialized successfully.")
     except Exception as e:
-        print(f"FATAL: Could not connect to Neo4j on startup: {e}")
+        print(f"FATAL: Error during application startup: {e}")
         # Depending on policy, you might want to exit or prevent startup
     yield
     # Code to run on shutdown
     print("Application shutdown...")
-    close_driver()
+    await close_async_driver()
+    print("Neo4j driver closed.")
 
 
 app = FastAPI(
@@ -46,8 +48,13 @@ async def health_check():
 
 # Include the categories router
 app.include_router(categories.router, prefix="/api/v1", tags=["Categories"])
-app.include_router(concepts.router, prefix="/api/v1", tags=["Concepts"])
 
+# Mount concepts router under /api/v1/concepts
+app.include_router(concepts.router, prefix="/api/v1/concepts")
+
+# Mount relationships router also under /api/v1/concepts
+# Its internal paths start with /{concept_id}/...
+# app.include_router(relationships.router, prefix="/api/v1/concepts", tags=["Relationships"]) # REMOVE THIS LINE
 
 # Remove the __main__ block if you always run with uvicorn command
 # if __name__ == "__main__":

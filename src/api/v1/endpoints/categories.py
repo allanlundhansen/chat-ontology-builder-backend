@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from neo4j import Driver, Result
+from neo4j import AsyncSession
 from typing import List
 
-from src.db.neo4j_driver import get_driver
+from src.db.neo4j_driver import get_db
 
 router = APIRouter()
 
@@ -11,16 +11,18 @@ router = APIRouter()
 #     name: str
 
 @router.get("/categories", response_model=List[str])
-async def get_all_categories(driver: Driver = Depends(get_driver)):
+async def get_all_categories(
+    session: AsyncSession = Depends(get_db)
+):
     """
     Retrieves a list of all main Kantian category names.
     """
     query = "MATCH (c:Category) RETURN c.name AS name ORDER BY name"
     try:
         # Use execute_query for managed transactions (recommended)
-        result: Result = driver.execute_query(query)
+        result = await session.run(query)
         # Extract the 'name' from each record
-        categories = [record["name"] for record in result.records]
+        categories = [record["name"] async for record in result]
         return categories
     except Exception as e:
         # Log the exception details here in a real application

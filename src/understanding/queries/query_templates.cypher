@@ -150,9 +150,29 @@ CALL apoc.custom.asProcedure(
    SKIP $skip
    LIMIT $limit',
   'READ',
-  [['modality', 'STRING'], ['skip', 'INTEGER', 0], ['limit', 'INTEGER', 50]], 
+  [['modality', 'STRING'], ['skip', 'INTEGER', 0], ['limit', 'INTEGER', 50]],
   [['id', 'STRING'], ['name', 'STRING'], ['description', 'STRING'], ['confidence', 'FLOAT']]
 );
+
+// Get concepts (basic listing with pagination)
+// Needed for the root GET /api/v1/concepts endpoint without filters
+CALL apoc.custom.asProcedure(
+  'getConcepts',
+  'MATCH (concept:Concept)
+   RETURN concept
+   ORDER BY concept.name
+   SKIP $skip
+   LIMIT $limit',
+  'READ',
+  [['skip', 'INTEGER', 0], ['limit', 'INTEGER', 50]],
+  [['concept', 'NODE']]
+);
+
+// Note on Hybrid Approach:
+// The queries reflect the hybrid approach to Kantian category representation:
+// 1. Quality and Modality categories use direct property queries (getConceptsByQuality, getConceptsByModality)
+// 2. Quantity and Relation categories use relationship-based queries (getConceptsByCategory, getConceptsBySubcategory)
+// 3. Temporal and spatial relationships (Forms of Intuition) have dedicated query templates 
 
 // New query templates for temporal and spatial relationships
 
@@ -186,10 +206,4 @@ CALL apoc.custom.asProcedure(
   [['conceptId', 'STRING'], ['limit', 'INTEGER', 50]], 
   [['id', 'STRING'], ['name', 'STRING'], ['description', 'STRING'], 
    ['relationType', 'STRING'], ['distance', 'STRING'], ['confidence', 'FLOAT']]
-);
-
-// Note on Hybrid Approach:
-// The queries reflect the hybrid approach to Kantian category representation:
-// 1. Quality and Modality categories use direct property queries (getConceptsByQuality, getConceptsByModality)
-// 2. Quantity and Relation categories use relationship-based queries (getConceptsByCategory, getConceptsBySubcategory)
-// 3. Temporal and spatial relationships (Forms of Intuition) have dedicated query templates 
+); 

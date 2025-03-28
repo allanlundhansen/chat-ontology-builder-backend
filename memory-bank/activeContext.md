@@ -69,8 +69,9 @@ We have begun implementation of the KantAI Backend, with current focus on:
 4. **Modality Representation Strategy**: Decided to replace the Phase 1 property-based modality on Concept nodes with a judgment-based representation in Phase 2, rather than maintaining coexistence. This involves a planned migration.
 5. **Quality/Modality Value Validation**: Due to limitations with Neo4j 5.x constraint syntax and the unavailability of APOC triggers in the current AuraDB environment, the validation ensuring `quality` and `modality` properties contain only the allowed Kantian values (or NULL) will be enforced at the **application level**.
 6. **Conditional Relationship Property Validation**: Similarly, the rule requiring `spatial_unit` when `distance` is present on `SPATIALLY_RELATES_TO` relationships cannot be enforced via standard constraints and will also be handled at the **application level**.
-7. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
-8. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
+7. **API Path Structure (Phase 1):** Decided to use `/api/v1/concepts` as the base path for Understanding Module endpoints (including concept retrieval and concept-specific relationship queries). A separate path (e.g., `/api/v1/logic`) will be used for the General Logic module later to maintain clear boundaries, addressing potential ambiguity of the term "concepts".
+8. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
+9. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
 
 ## Current Challenges
 
