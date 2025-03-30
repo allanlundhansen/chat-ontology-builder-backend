@@ -23,49 +23,36 @@ async def get_async_driver() -> AsyncDriver:
     Uses singleton pattern to reuse the driver. Connects to the main application DB (not test DB).
     """
     global _driver
-    print("DEBUG: Entering get_async_driver") # ADDED
     if _driver is None:
-        print("DEBUG: _driver is None, attempting to create main driver.") # ADDED
         if not NEO4J_URI or not NEO4J_USERNAME or not NEO4J_PASSWORD:
-            print("ERROR: Missing main Neo4j connection details in env.") # ADDED
-            raise ValueError("Neo4j connection details (URI, USERNAME, PASSWORD) not found in environment variables.")
+            raise ValueError("Missing Neo4j connection details in environment variables.")
         try:
-            print(f"DEBUG: Attempting AsyncGraphDatabase.driver connect to {NEO4J_URI}") # ADDED
             _driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
-            print(f"DEBUG: Driver object created: {_driver}") # ADDED
-            print("DEBUG: Attempting driver.verify_connectivity()") # ADDED
             await _driver.verify_connectivity()
-            print("DEBUG: Successfully verified connectivity for main driver.") # ADDED
         except Exception as e:
-            print(f"ERROR in get_async_driver during connection/verification: {type(e).__name__}: {e}") # ADDED
-            traceback.print_exc() # ADDED - Print original traceback
-            raise # Re-raise the original connection error
+            _driver = None
+            raise HTTPException(status_code=503, detail="Could not connect to the database.") from e
     else:
-        print("DEBUG: Reusing existing main _driver instance.") # ADDED
-    # Ensure driver is not None before returning
-    if _driver is None:
-         raise RuntimeError("Failed to initialize main Neo4j async driver.") # Should not happen if connect works
-    print("DEBUG: Returning main driver instance.") # ADDED
+        pass
     return _driver
 
 async def close_async_driver():
     """Closes the main application's Neo4j AsyncDriver connection if it exists."""
     global _driver
     if _driver is not None:
-        print("Closing main Neo4j async driver...")
-        await _driver.close() # Use await for async close
+        await _driver.close()
         _driver = None
-        print("Main Neo4j async driver closed.")
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db(db_name: str = NEO4J_DATABASE) -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency injector that yields an AsyncSession using the main application driver.
     Handles session acquisition errors, lets endpoint errors propagate.
     Ensures session is closed even if endpoint raises an error.
     """
-    main_driver: Optional[AsyncDriver] = None
+    driver: Optional[AsyncDriver] = None
     session: Optional[AsyncSession] = None
     try:
+        driver = await get_async_driver()
         main_driver = await get_async_driver()
         # Use the database specified in env or default
         db_name = NEO4J_DATABASE # Use the global/env var consistently

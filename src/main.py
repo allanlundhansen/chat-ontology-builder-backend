@@ -50,7 +50,7 @@ async def health_check():
     return {"status": "ok"}
 
 # Include the categories router
-app.include_router(categories.router, prefix="/api/v1", tags=["Categories"])
+app.include_router(categories.router, prefix="/api/v1/categories", tags=["Categories"])
 
 # Mount concepts router under /api/v1/concepts
 app.include_router(concepts.router, prefix="/api/v1/concepts", tags=["Concepts"])

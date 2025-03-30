@@ -23,6 +23,12 @@ class KantianValidator:
         # Add any other units required by your spec
     }
     
+    # --- ADD Allowed Spatial Relation Types ---
+    ALLOWED_SPATIAL_RELATION_TYPES: Set[str] = {
+        "near", "far", "contains", "within", "overlaps", "intersects", "disjoint",
+        "above", "below", "left", "right", "front", "back" # Added more common types
+    }
+    
     @classmethod
     def validate_concept(cls, concept_data: dict) -> None:
         """Validate concept properties against Kantian constraints"""
@@ -59,13 +65,22 @@ class KantianValidator:
                     "Spatial relationships require 'spatial_unit' when 'distance' is present",
                     field="spatial_unit"
                 )
-            # --- ADD Check 2: Invalid unit when unit IS present ---
+            # Check 2: Invalid unit when unit IS present
             elif 'spatial_unit' in properties:
                 unit = properties['spatial_unit']
                 if unit not in cls.ALLOWED_SPATIAL_UNITS:
                     raise KantianValidationError(
                         f"Invalid spatial_unit: '{unit}'. Must be one of {cls.ALLOWED_SPATIAL_UNITS}",
                         field="spatial_unit"
+                    )
+
+            # --- ADD Check 3: Invalid relation_type when it IS present ---
+            if 'relation_type' in properties:
+                spatial_rel_type = properties['relation_type']
+                if spatial_rel_type not in cls.ALLOWED_SPATIAL_RELATION_TYPES:
+                    raise KantianValidationError(
+                        f"Invalid relation_type for SPATIALLY_RELATES_TO: '{spatial_rel_type}'. Must be one of {cls.ALLOWED_SPATIAL_RELATION_TYPES}",
+                        field="relation_type"
                     )
 
         # --- Add checks for other relationship types if needed ---

@@ -1,6 +1,6 @@
 # Progress - Project: KantAI Backend
 
-*Last Updated: (Current Date)*
+*Last Updated: 2024-08-02*
 
 ## What Works
 
@@ -22,11 +22,15 @@
   - `DELETE /{element_id}`: Implemented and tested.
   - `PATCH /{element_id}`: Implemented and tested (partial updates).
 - **Relationships (`/api/v1/relationships`)**:
-  - `POST /`: Implemented and tested (basic creation, spatial validation).
+  - `POST /`: Implemented and tested (basic creation, spatial validation, dynamic types).
+  - `GET /`: Implemented and tested (listing, filtering, pagination).
+  - `GET /{element_id}`: Implemented and tested (single relationship retrieval).
 
 ### Database Layer
 - Cypher queries for Concept CRUD (Create, Read - list/detail, Update - partial, Delete) are functional within API endpoints.
 - Cypher query for creating relationships functional within API endpoint.
+- Cypher query for listing relationships (with filtering/pagination) functional within API endpoint.
+- Cypher query for retrieving a single relationship by ID functional within API endpoint.
 - Basic node structure for Concepts and Categories exists.
 - Application-level validation for relationships (`spatial_unit`) exists.
 
@@ -36,14 +40,16 @@
 - Prerequisite data fixtures functional.
 - Integration tests for full Concept CRUD (`POST`, `GET /`, `GET /{id}`, `DELETE /{id}`, `PATCH /{id}`) are passing.
 - Integration tests for `POST /relationships` passing.
+- Integration tests for `GET /relationships` (listing, filtering, pagination) passing.
+- Integration tests for `GET /relationships/{element_id}` passing.
 - Previous test setup/failure issues (imports, `conftest.py`, assertions, async loops) resolved.
+- Resolved complex issues with relationship creation and listing, including dynamic types, `element_id` handling, property filtering, and test fixture conflicts.
+- Resolved issues with GET relationship by ID endpoint (parameter order, imports, dependencies, query aliases, test assertions).
 
 ## What's Left to Build
 
 ### API Layer
 - **Relationships (`/api/v1/relationships`)**:
-  - `GET /` (list relationships).
-  - `GET /{element_id}` (get specific relationship).
   - `UPDATE` (`PUT` or `PATCH`) endpoint.
   - `DELETE` endpoint.
 - **Categories (`/api/v1/categories`)**:
@@ -52,13 +58,13 @@
 - **Advanced Querying**: Expose via API.
 
 ### Database Layer
-- Cypher queries for Relationship `GET`, `UPDATE`, `DELETE`.
+- Cypher queries for Relationship `GET` (detail), `UPDATE`, `DELETE`.
 - Implementation of `INSTANCE_OF` relationship creation/management.
 - Queries for advanced traversal.
 - Finalize indexing strategy.
 
 ### Testing
-- Integration tests for remaining Relationship CRUD & Category CRUD.
+- Integration tests for remaining Relationship CRUD (`GET /{id}`, `UPDATE`, `DELETE`) & Category CRUD.
 - Tests for `INSTANCE_OF` management.
 - Tests for advanced query endpoints.
 - Address skipped tests.

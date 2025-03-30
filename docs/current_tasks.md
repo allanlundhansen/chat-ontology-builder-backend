@@ -1,47 +1,52 @@
-# Current Tasks: Implement PATCH /api/v1/concepts/{element_id}
+# Current Tasks: Complete Phase 1 API Endpoints
 
-*Last Updated: (Current Date)*
+*Last Updated: 2024-08-02*
 
-## Focus: Concept PATCH Endpoint
+## Focus: Relationships, Categories, & Refinement
 
-**Goal:** Add functionality to partially update an existing concept by its element ID.
+**Goal:** Implement the remaining CRUD endpoints for relationships, implement all endpoints for categories, and address outstanding testing and consistency issues.
 
 ### Tasks:
 
--   [x] **Pydantic Model (`models/concept.py`):**
-    -   [x] Define a new model `ConceptUpdate`.
-    -   [x] Ensure all fields in `ConceptUpdate` are optional.
-    -   [x] Fix type hints after realizing enums didn't exist.
--   [x] **API Endpoint (`concepts.py`):**
-    -   [x] Define `update_concept_partial` function.
-    -   [x] Add `@router.patch` decorator.
-    -   [x] Implement `model_dump(exclude_unset=True)`.
-    -   [x] Handle empty update data case.
-    -   [x] Implement Cypher query (`SET c += $update_data`, `RETURN c, elementId(c) AS elementId`).
-    -   [x] Execute query.
-    -   [x] Handle 404 Not Found.
-    -   [x] Process result into `ConceptResponse`, ensuring key consistency (`elementId`).
-    -   [x] Add specific `except HTTPException` and generic `except Exception` handlers.
--   [x] **Integration Test (`test_concept_endpoints.py`):**
-    -   [x] Create `test_update_concept_partial_success()`:
-        -   [x] Arrange: Create concept.
-        -   [x] Arrange: Define partial update data.
-        -   [x] Act: Call PATCH.
-        -   [x] Assert: Check 200 OK status.
-        -   [x] Assert: Verify response body reflects updates.
-        -   [x] Act/Assert (Verify): Call GET and verify persistence.
-    -   [x] Create `test_update_concept_not_found()`:
-        -   [x] Arrange: Define non-existent ID and data.
-        -   [x] Act: Call PATCH on non-existent ID.
-        -   [x] Assert: Check 404 status.
-    -   [x] Fix `NameError: PROJECT_ROOT` in `conftest.py`.
-    -   [x] Fix import errors related to non-existent `enums.py`.
+-   [ ] **Relationships (`/api/v1/relationships`)**:
+    -   [X] **GET /{element_id}:**
+        -   [X] Define Pydantic response model (reuse `RelationshipResponse`?).
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query to fetch a single relationship by `elementId`.
+        -   [X] Handle 404 Not Found.
+        -   [X] Add integration test.
+    -   [X] **PATCH /{element_id}:**
+        -   [X] Define `RelationshipUpdate` Pydantic model (optional fields).
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query for partial update (`SET r += $update_data`).
+        -   [X] Handle 404 Not Found.
+        -   [X] Add integration test.
+    -   [X] **DELETE /{element_id}:**
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query to delete a relationship (`MATCH ()-[r]-() WHERE elementId(r) = $id DETACH DELETE r`).
+        -   [X] Handle 404 Not Found.
+        -   [X] Return 204 No Content on success.
+        -   [X] Add integration test.
+-   [ ] **Categories (`/api/v1/categories`)**:
+    -   [X] Define Pydantic models (e.g., `CategoryResponse`, `SubCategoryResponse`, `CategoryListResponse` - Create/Update needed).
+    -   [X] Implement `GET /` endpoint (list all categories and subcategories).
+    -   [X] Implement `GET /{name}` endpoint (get specific category/subcategory details).
+    -   [ ] Implement `POST /` endpoint (create a top-level category).
+    -   [ ] Implement `POST /{parent_name}/subcategories` endpoint (create a subcategory).
+    -   [ ] Implement `PATCH /{name}` endpoint (update category/subcategory).
+    -   [ ] Implement `DELETE /{name}` endpoint (delete category/subcategory, handle children).
+    -   [X] Add integration tests for GET endpoints.
+    -   [ ] Add integration tests for POST, PATCH, DELETE endpoints.
+-   [ ] **Testing Refinement:**
+    -   [ ] Investigate and fix skipped tests in `test_concepts.py` and `test_concept_endpoints.py`.
+-   [ ] **Consistency & Cleanup:**
+    -   [X] Address API Naming Convention (`elementId` vs `element_id`) - see `icebox.md`.
+    -   [ ] Review and remove any remaining unnecessary debug code or comments.
 -   [ ] **Documentation:**
-    -   [x] Update this file (`current_tasks.md`) as tasks are completed.
-    -   [ ] Update `activeContext.md` and `progress.md` after the feature is fully implemented and tested.
+    -   [ ] Update this file (`current_tasks.md`) as tasks are completed.
+    -   [ ] Update `activeContext.md` and `progress.md` after significant features are implemented.
 
 ### Notes/Considerations:
-- Using `SET c += $update_data` in Cypher is efficient for partial updates.
-- Ensure `ConceptUpdate` model correctly defines optional fields.
-- Pydantic's `model_dump(exclude_unset=True)` is key.
-- Consistency between Cypher alias, record access key, dict key, and Pydantic field name (`elementId`) is crucial. Issue tracked in `icebox.md` for potential future change to snake_case. 
+- Relationship queries should return source/target node details or just IDs? Decide on response structure.
+- Category structure is pre-defined; API might primarily be for retrieval in Phase 1.
+- Fixing skipped tests might involve adjusting fixtures or test logic. 

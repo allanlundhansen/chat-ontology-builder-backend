@@ -1,10 +1,10 @@
 # Active Context - Project: KantAI Backend
 
-*Last Updated: (Current Date)*
+*Last Updated: 2024-08-02*
 
 ## Current Work Focus
 
-The primary focus remains on implementing the foundational **Phase 1** requirements outlined in `01-Kantian-Category-Structure-KG.md`. Specifically, we are building out the **API layer** using FastAPI and ensuring interactions with the Neo4j database are correct and tested. We just completed the basic CRUD operations for the Concepts endpoint.
+The primary focus remains on implementing the foundational **Phase 1** requirements outlined in `01-Kantian-Category-Structure-KG.md`. Specifically, we are building out the **API layer** using FastAPI and ensuring interactions with the Neo4j database are correct and tested. We have completed basic CRUD for Concepts and the create/list endpoints for Relationships.
 
 ### API Layer
 - **Concepts Endpoint (`/api/v1/concepts`)**:
@@ -15,8 +15,8 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
   - `PATCH /{element_id}`: Implemented and tested.
 - **Relationships Endpoint (`/api/v1/relationships`)**:
   - `POST /`: Implemented and tested.
-  - `GET /`: **Next Up**
-  - `GET /{element_id}`: **Next Up**
+  - `GET /`: Implemented and tested.
+  - `GET /{element_id}`: **Implemented and tested.**
   - `PUT / PATCH /{element_id}`: **Next Up**
   - `DELETE /{element_id}`: **Next Up**
 - **Categories Endpoint (`/api/v1/categories`)**: Not started.
@@ -25,16 +25,29 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - Core schema based on Kantian categories exists.
 - Queries for CRUD operations (Create, Read, Delete, Update) on concepts are implemented.
 - Query for creating relationships implemented.
+- Query for listing relationships (with pagination/filtering) implemented.
 - Indexing is partially implemented.
 
 ### Testing
 - Integration tests for Concept CRUD (`POST`, `GET /`, `GET /{id}`, `DELETE /{id}`, `PATCH /{id}`) are implemented and passing.
 - Integration tests for `POST /relationships` are implemented and passing.
+- Integration tests for `GET /relationships` (listing, filtering, pagination) are implemented and passing.
 - Unit tests for specific validation logic exist.
 - Test fixtures for Neo4j sessions (async) are set up and `conftest.py` path issues resolved.
 
 ## Recent Changes
 
+- **Implemented `GET /api/v1/relationships/{element_id}` Endpoint**: Added functionality to retrieve a single relationship by its `element_id`. Handled 404 cases. Added integration tests (`test_get_relationship_by_id_success`, `test_get_relationship_by_id_not_found`). Debugged and resolved multiple issues including parameter ordering `SyntaxError`, missing `fastapi.Path` and `neo4j.AsyncDriver` imports, `neo4j_driver` dependency injection, Pydantic validation errors (`KeyError: 'element_id'`), query alias mismatches (`source_node_id` vs `source_id`), and test assertion mismatches.
+- **Implemented `GET /api/v1/relationships/` Endpoint**: Added functionality to list relationships with optional type filtering and pagination (`skip`, `limit`). Updated `RelationshipResponse` and `RelationshipListResponse` models to include `element_id` and support the list structure. Refactored Cypher query for listing.
+- **Resolved Relationship Creation/Listing Issues**: Debugged and fixed multiple issues:
+    - Switched from APOC to standard Cypher `MATCH` and `CREATE` for relationship creation.
+    - Implemented dynamic relationship type creation using f-strings.
+    - Correctly handled asynchronous operations (`await` keyword).
+    - Ensured `element_id` is returned by the creation query.
+    - Added `creation_timestamp` and filtered `None` properties before `SET`.
+    - Updated Pydantic models (`RelationshipResponse`) to include `element_id`.
+    - Updated test assertions to match the `RelationshipListResponse` structure and use `element_id`.
+    - Ensured pagination test (`test_list_relationships_pagination`) uses `clear_db_before_test` fixture and type filtering for reliable results.
 - **Implemented `PATCH /api/v1/concepts/{element_id}` Endpoint**: Added functionality to partially update a concept. Uses `ConceptUpdate` model with optional fields and `model_dump(exclude_unset=True)`. Uses `SET c += $update_data` Cypher clause. Returns updated concept. Handles 404 and 200 responses. Added integration tests (`test_update_concept_partial_success`, `test_update_concept_not_found`). Debugged and fixed issues related to `elementId`/`element_id` key consistency between Cypher, Pydantic models, and dictionary creation.
 - **Resolved Test Setup Issues**: Fixed `ModuleNotFoundError` by correcting `sys.path` in `conftest.py` and removing faulty enum imports from `models/concept.py`. Fixed `NameError` for `PROJECT_ROOT` in `conftest.py`.
 - **Implemented `DELETE /api/v1/concepts/{element_id}` Endpoint**: Added functionality to delete a concept. Added integration tests.
@@ -52,20 +65,20 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 ## Next Steps
 
 ### Immediate
-1.  **Commit Changes**: Commit the implemented PATCH endpoint, tests, and documentation updates (`current_tasks.md`, `done_tasks.md`, `activeContext.md`, `progress.md`).
-2.  **Decide Next API Task**: Choose between starting Relationship CRUD (GET), addressing skipped tests, or addressing an `icebox.md` item.
+1.  **Commit Changes**: Commit the implemented GET relationships/{element_id} endpoint, associated fixes, tests, and documentation updates (`activeContext.md`, `progress.md`, `current_tasks.md`).
+2.  **Decide Next API Task**: Choose between implementing the next Relationship CRUD endpoint (`PATCH /{element_id}`), addressing skipped tests, or addressing an `icebox.md` item (like API naming convention).
 
 ### API Layer
-- Implement `GET`, `UPDATE`, `DELETE` endpoints for relationships.
+- Implement `UPDATE` (`PATCH`), `DELETE` endpoints for relationships.
 - Implement endpoints for categories.
 
 ### Database Layer
-- Implement Cypher queries for Relationship GET/UPDATE/DELETE operations.
+- Implement Cypher queries for Relationship `UPDATE`, `DELETE` operations.
 - Implement queries for managing `INSTANCE_OF` relationships.
 - Develop queries for navigating semantic, temporal, and spatial relationships as per PRD Task 4.
 
 ### Testing
-- Add integration tests for remaining Relationship CRUD and Category endpoints.
+- Add integration tests for remaining Relationship CRUD (`UPDATE`, `DELETE`) and Category endpoints.
 - Address skipped tests.
 - Potentially add more unit tests for complex business logic if needed.
 

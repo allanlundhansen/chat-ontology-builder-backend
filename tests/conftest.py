@@ -211,6 +211,22 @@ async def async_client(app: FastAPI, async_test_driver: AsyncDriver) -> AsyncGen
     app.dependency_overrides.pop(get_db, None)
     print("DEBUG [conftest - async_client - SESSION SCOPE]: Finished session scope cleanup.")
 
+# NEW Fixture: Clears DB before specific tests (function scope)
+@pytest_asyncio.fixture(scope="function")
+async def clear_db_before_test(async_test_driver: AsyncDriver):
+    """
+    ASYNC: Clears the test database BEFORE a specific test function runs. (Function Scope)
+    Use this for tests that require a completely empty state.
+    """
+    print(f"\nDEBUG [conftest - clear_db_before_test - FUNCTION SCOPE]: Clearing TEST DB '{DEFAULT_DB_NAME}' before test function.")
+    try:
+        # Pass the correct database name
+        await clear_database(async_test_driver, DEFAULT_DB_NAME)
+        print(f"DEBUG [conftest - clear_db_before_test - FUNCTION SCOPE]: TEST DB '{DEFAULT_DB_NAME}' cleared for test.")
+        # No yield needed for a simple setup fixture like this
+    except Exception as e:
+        pytest.fail(f"Failed to clear TEST database '{DEFAULT_DB_NAME}' before test function: {e}")
+
 # --- Optional: Helper for Python < 3.10 if needed ---
 # async def anext(ait: AsyncIterator):
 #     """Helper for getting the next item from an async iterator for Python < 3.10"""

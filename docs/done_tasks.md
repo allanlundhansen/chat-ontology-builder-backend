@@ -47,11 +47,9 @@ This file archives the content of `docs/current_tasks.md` after a feature/task s
 
 ## Completed: Implement PATCH /api/v1/concepts/{element_id}
 
-*(Archived on: [Date] - Please update)*
+*(Archived on: 2024-08-02)*
 
-*Last Updated: (Current Date)*
-
-## Focus: Concept PATCH Endpoint
+### Focus: Concept PATCH Endpoint
 
 **Goal:** Add functionality to partially update an existing concept by its element ID.
 
