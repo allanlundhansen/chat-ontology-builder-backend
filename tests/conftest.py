@@ -11,7 +11,7 @@ import pytest
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession, GraphDatabase, Driver, Session
+from neo4j import AsyncGraphDatabase, AsyncDriver, AsyncSession, GraphDatabase, Driver, Session, AsyncTransaction
 import pytest_asyncio
 from typing import AsyncGenerator, Optional, AsyncIterator
 from httpx import AsyncClient, ASGITransport
@@ -83,12 +83,38 @@ def manage_neo4j_driver(request):
         _test_driver = None
 
 @pytest_asyncio.fixture(scope="function")
-async def neo4j_async_session(async_test_driver: AsyncDriver) -> AsyncGenerator[AsyncSession, None]:
-    """Provides an async session to the test database."""
-    print("\n--- Creating Async Test Session (Function Scope) ---")
-    async with async_test_driver.session(database=DEFAULT_DB_NAME) as session:
-        yield session
-    print("--- Closed Async Test Session (Function Scope) ---")
+async def neo4j_async_session(async_test_driver: AsyncDriver) -> AsyncGenerator[AsyncTransaction, None]:
+    """
+    Provides an async transaction that rolls back after the test.
+    The session is managed internally.
+    Scope: function
+    """
+    print(f"\nDEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Acquiring session for DB \'{DEFAULT_DB_NAME}\'...")
+    session: AsyncSession | None = None
+    tx: AsyncTransaction | None = None
+    try:
+        session = async_test_driver.session(database=DEFAULT_DB_NAME)
+        tx = await session.begin_transaction()
+        print("DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Began transaction, yielding transaction...")
+        yield tx # Yield the transaction object
+    finally:
+        if tx: # No need to check tx.open, rollback is idempotent
+            try:
+                if tx.is_open(): # Use internal method if available, otherwise just try rollback
+                    print("DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Rolling back open transaction...")
+                    await tx.rollback()
+                    print("DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Transaction rolled back.")
+                else:
+                    print("DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Transaction already closed/rolled back.")
+            except Exception as e: # Catch potential errors if rollback fails unexpectedly
+                print(f"WARN [conftest - neo4j_async_session]: Error during rollback check/attempt: {e}")
+                # Still ensure session is closed below
+        else:
+            print("DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: No transaction object to roll back.")
+
+        if session:
+             await session.close()
+             print(f"DEBUG [conftest - neo4j_async_session - FUNCTION SCOPE]: Session for DB \'{DEFAULT_DB_NAME}\' closed.")
 
 @pytest.fixture(scope="function")
 def client(app: FastAPI): # Add type hint for app fixture if not already present
@@ -180,36 +206,43 @@ async def load_sample_data(manage_db_state, async_test_driver: AsyncDriver):
     finally:
         print(f"DEBUG [conftest - load_sample_data - SESSION SCOPE]: Teardown (if any) for TEST DB '{DEFAULT_DB_NAME}'.")
 
-# Keep session scope (as decided previously)
-@pytest_asyncio.fixture(scope="session")
-async def async_client(app: FastAPI, async_test_driver: AsyncDriver) -> AsyncGenerator[AsyncClient, None]:
+# CORRECTED: Scope changed to "function"
+@pytest_asyncio.fixture(scope="function")
+# CORRECTED: Depend on the actual fixture name 'neo4j_async_session'
+async def async_client(app: FastAPI, neo4j_async_session: AsyncTransaction) -> AsyncGenerator[AsyncClient, None]:
     """
     ASYNC: Provides an HTTPX AsyncClient for making requests directly to the test app ASGI interface.
-    Overrides the application's database dependency (get_db) ONCE for the session.
-    Scope: session
+    Overrides the application's database dependency (get_db) to use the function-scoped transaction object.
+    Scope: function
     """
-    print("\nDEBUG [conftest - async_client - SESSION SCOPE]: Setting up async test client...")
+    print("\nDEBUG [conftest - async_client - FUNCTION SCOPE]: Setting up async test client...")
 
-    async def override_get_db_for_test() -> AsyncGenerator[AsyncSession, None]:
-        print(f"DEBUG [conftest - override_get_db_for_test]: Acquiring session from TEST driver for DB '{DEFAULT_DB_NAME}'...")
-        async with async_test_driver.session(database=DEFAULT_DB_NAME) as session:
-            print("DEBUG [conftest - override_get_db_for_test]: Yielding session...")
-            yield session
-            print("DEBUG [conftest - override_get_db_for_test]: Session scope exiting.")
+    # Define the override function *inside* the fixture so it closes over the injected transaction
+    async def override_get_db_for_test() -> AsyncGenerator[AsyncTransaction, None]: # Changed return type
+        print(f"DEBUG [conftest - override_get_db_for_test]: Yielding transaction object from neo4j_async_session fixture.")
+        # Yield the already-existing transaction object from the function-scoped fixture
+        yield neo4j_async_session # Yield the tx
+        # No need to close or manage transaction here, neo4j_async_session handles it
 
+    # Apply the override for this specific test function's scope
+    original_override = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = override_get_db_for_test
-    print("DEBUG [conftest - async_client - SESSION SCOPE]: Dependency override set.")
+    print("DEBUG [conftest - async_client - FUNCTION SCOPE]: Dependency override set for function.")
 
     transport = ASGITransport(app=app)
-    # Pass the transport AND add follow_redirects=True
-    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=True) as client:
-        print("DEBUG [conftest - async_client - SESSION SCOPE]: Yielding async test client (following redirects).")
-        yield client
-        print("DEBUG [conftest - async_client - SESSION SCOPE]: Async test client scope exiting.")
-
-    print("DEBUG [conftest - async_client - SESSION SCOPE]: Removing dependency override.")
-    app.dependency_overrides.pop(get_db, None)
-    print("DEBUG [conftest - async_client - SESSION SCOPE]: Finished session scope cleanup.")
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=True) as client:
+            print("DEBUG [conftest - async_client - FUNCTION SCOPE]: Yielding async test client (following redirects).")
+            yield client
+            print("DEBUG [conftest - async_client - FUNCTION SCOPE]: Async test client scope exiting.")
+    finally:
+        # Restore the original override (or remove if none existed)
+        print("DEBUG [conftest - async_client - FUNCTION SCOPE]: Removing/Restoring dependency override for function.")
+        if original_override:
+            app.dependency_overrides[get_db] = original_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+        print("DEBUG [conftest - async_client - FUNCTION SCOPE]: Finished function scope cleanup.")
 
 # NEW Fixture: Clears DB before specific tests (function scope)
 @pytest_asyncio.fixture(scope="function")

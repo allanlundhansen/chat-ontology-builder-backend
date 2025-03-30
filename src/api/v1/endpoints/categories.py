@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Annotated
-from neo4j import AsyncSession, exceptions as neo4j_exceptions
+from neo4j import AsyncSession, exceptions as neo4j_exceptions, AsyncTransaction
 import traceback
 
 from src.db.neo4j_driver import get_db
@@ -9,7 +9,8 @@ from src.models.category import (
     CategoryResponse,
     SubCategoryResponse,
     CategoryCreate,
-    SubCategoryCreate
+    SubCategoryCreate,
+    CategoryUpdate
 )
 
 router = APIRouter()
@@ -22,7 +23,7 @@ router = APIRouter()
     tags=["Categories"]
 )
 async def list_categories(
-    session: Annotated[AsyncSession, Depends(get_db)]
+    tx: Annotated[AsyncTransaction, Depends(get_db)]
 ) -> CategoryListResponse:
     """Retrieve all categories and their subcategories from the database."""
     query = (
@@ -45,7 +46,7 @@ async def list_categories(
 
     categories_list: List[CategoryResponse] = []
     try:
-        result = await session.run(query)
+        result = await tx.run(query)
         records = await result.data() # Fetch all records
 
         for record in records:
@@ -89,7 +90,7 @@ async def list_categories(
 )
 async def get_category_by_name(
     name: str,
-    session: Annotated[AsyncSession, Depends(get_db)]
+    tx: Annotated[AsyncTransaction, Depends(get_db)]
 ) -> CategoryResponse:
     """Retrieve category details by name, resolving subcategory names to their parent category."""
     # Query finds the node by name (Cat or Subcat), determines the relevant Category, then fetches its details.
@@ -116,7 +117,7 @@ async def get_category_by_name(
     )
 
     try:
-        result = await session.run(query, {"name": name})
+        result = await tx.run(query, {"name": name})
         record = await result.single() # Fetch the single record
 
         if record is None:
@@ -157,7 +158,7 @@ async def get_category_by_name(
 )
 async def create_category(
     category_data: CategoryCreate,
-    session: Annotated[AsyncSession, Depends(get_db)],
+    tx: Annotated[AsyncTransaction, Depends(get_db)],
 ) -> CategoryResponse:
     """Create a new top-level category."""
     query = (
@@ -165,7 +166,7 @@ async def create_category(
         "RETURN elementId(c) as elementId, c.name as name, c.description as description"
     )
     try:
-        result = await session.run(
+        result = await tx.run(
             query,
             {"name": category_data.name, "description": category_data.description},
         )
@@ -218,7 +219,7 @@ async def create_category(
 async def create_subcategory(
     parent_category_name: str,
     subcategory_data: SubCategoryCreate,
-    session: Annotated[AsyncSession, Depends(get_db)],
+    tx: Annotated[AsyncTransaction, Depends(get_db)],
 ) -> SubCategoryResponse:
     """Create a new subcategory and link it to a parent category."""
     query = (
@@ -229,7 +230,17 @@ async def create_subcategory(
     )
 
     try:
-        result = await session.run(
+        # Check if parent exists first *within the same transaction*
+        parent_check_query = "MATCH (p:Category {name: $parent_name}) RETURN p LIMIT 1"
+        parent_result = await tx.run(parent_check_query, {"parent_name": parent_category_name})
+        if await parent_result.single() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Parent category '{parent_category_name}' not found.",
+            )
+
+        # If parent exists, proceed to create subcategory
+        result = await tx.run(
             query,
             {
                 "parent_name": parent_category_name,
@@ -240,21 +251,11 @@ async def create_subcategory(
         record = await result.single()
 
         if record is None:
-            # This could mean the parent category wasn't found, or creation failed.
-            # Check if parent exists first for a better error message.
-            parent_check_query = "MATCH (p:Category {name: $parent_name}) RETURN p"
-            parent_result = await session.run(parent_check_query, {"parent_name": parent_category_name})
-            if await parent_result.single() is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Parent category '{parent_category_name}' not found.",
-                )
-            else:
-                 # If parent exists but record is still None, something else went wrong
-                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to create subcategory node or relationship."
-                 )
+             # If parent exists but record is still None, creation failed unexpectedly
+             raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create subcategory node or relationship after parent check."
+             )
 
         # Validate and return the SubCategoryResponse
         return SubCategoryResponse.model_validate(record)

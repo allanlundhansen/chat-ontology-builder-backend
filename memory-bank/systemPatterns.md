@@ -129,6 +129,7 @@ While our computational implementation necessarily simplifies this model, we mai
 - **Relationship Types**: Specialized predicates for different categorical dimensions
 - **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph, often using predefined templates.
 - **Query Templates**: Pre-defined Cypher query templates (`.cypher` files) for common knowledge graph operations, executed by the application layer. (Note: APOC custom procedures are unavailable).
+- **Query Management**: Currently using a hybrid approach. Core Concept CRUD queries are defined as Python constants (`src/cypher_queries/concept_queries.py`) for robustness against loader issues. Other queries may still be loaded from `.cypher` files via `src/utils/cypher_loader.py`.
 - **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
 - **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
 
@@ -154,6 +155,7 @@ While our computational implementation necessarily simplifies this model, we mai
   - **Rationale:** While "concepts" exist in both Understanding and General Logic (via Judgments), using `/concepts` for the Understanding module's entities is pragmatic for Phase 1. Clear boundaries will be maintained by introducing distinct paths (e.g., `/api/v1/logic` or `/api/v1/judgments`) for General Logic components in future phases. This balances current scope clarity with long-term modularity.
 - **Cypher Query Endpoints**: Dedicated API endpoints for executing optimized Cypher queries against the knowledge graph, often using predefined templates.
 - **Query Templates**: Pre-defined Cypher query templates (`.cypher` files) for common knowledge graph operations, executed by the application layer. (Note: APOC custom procedures are unavailable).
+- **Query Management**: Currently using a hybrid approach. Core Concept CRUD queries are defined as Python constants (`src/cypher_queries/concept_queries.py`) for robustness against loader issues. Other queries may still be loaded from `.cypher` files via `src/utils/cypher_loader.py`.
 - **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
 - **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
 - **Validation Layer**: New validation service enforces Quality/Modality constraints and relationship rules before database writes

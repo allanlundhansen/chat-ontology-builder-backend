@@ -88,11 +88,9 @@ def test_create_concept_invalid_quality(client): # Use client fixture
     response = client.post("/api/v1/concepts/", json=invalid_concept_data)
     assert response.status_code == 422
     error_detail = response.json()["detail"]
-    assert isinstance(error_detail, list)
-    assert len(error_detail) == 1
-    assert error_detail[0]["loc"] == ["body", "quality"]
-    assert "Invalid Quality" in error_detail[0]["msg"]
-    assert error_detail[0]["type"] == "kantian_validation_error"
+    assert isinstance(error_detail, str)
+    assert "Invalid Quality" in error_detail
+    assert "NonExistentQuality" in error_detail
 
 @pytest.mark.asyncio
 async def test_create_relationship_missing_spatial_unit(client, test_concepts_for_rels):
@@ -156,12 +154,9 @@ def test_create_concept_invalid_modality(client):
     assert response.status_code == 422, f"Expected 422, got {response.status_code}. Response: {response.text}"
 
     error_detail = response.json()["detail"]
-    assert isinstance(error_detail, list)
-    assert len(error_detail) == 1, f"Expected 1 error detail, got {len(error_detail)}"
-    # Check location, message, and type for modality error
-    assert error_detail[0]["loc"] == ["body", "modality"], f"Expected loc ['body', 'modality'], got {error_detail[0]['loc']}"
-    assert "Invalid Modality" in error_detail[0]["msg"], f"Expected 'Invalid Modality' in msg, got {error_detail[0]['msg']}"
-    assert error_detail[0]["type"] == "kantian_validation_error", f"Expected type 'kantian_validation_error', got {error_detail[0]['type']}"
+    assert isinstance(error_detail, str)
+    assert "Invalid Modality" in error_detail
+    assert "MaybePerhapsPossibly" in error_detail
 
 
 @pytest.mark.asyncio

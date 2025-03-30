@@ -21,12 +21,12 @@
         -   [X] Write Cypher query for partial update (`SET r += $update_data`).
         -   [X] Handle 404 Not Found.
         -   [X] Add integration test.
-    -   [X] **DELETE /{element_id}:**
-        -   [X] Implement API endpoint function.
-        -   [X] Write Cypher query to delete a relationship (`MATCH ()-[r]-() WHERE elementId(r) = $id DETACH DELETE r`).
-        -   [X] Handle 404 Not Found.
-        -   [X] Return 204 No Content on success.
-        -   [X] Add integration test.
+    -   [ ] **DELETE /{element_id}:**
+        -   [ ] Implement API endpoint function.
+        -   [ ] Write Cypher query to delete a relationship (`MATCH ()-[r]-() WHERE elementId(r) = $id DETACH DELETE r`).
+        -   [ ] Handle 404 Not Found.
+        -   [ ] Return 204 No Content on success.
+        -   [ ] Add integration test.
 -   [ ] **Categories (`/api/v1/categories`)**:
     -   [X] Define Pydantic models (e.g., `CategoryResponse`, `SubCategoryResponse`, `CategoryListResponse` - Create/Update needed).
     -   [X] Implement `GET /` endpoint (list all categories and subcategories).
@@ -39,6 +39,7 @@
     -   [ ] Add integration tests for POST, PATCH, DELETE endpoints.
 -   [ ] **Testing Refinement:**
     -   [ ] Investigate and fix skipped tests in `test_concepts.py` and `test_concept_endpoints.py`.
+    -   [ ] Investigate and fix 7 test warnings (Pytest mark, Neo4j UserWarning).
 -   [ ] **Consistency & Cleanup:**
     -   [X] Address API Naming Convention (`elementId` vs `element_id`) - see `icebox.md`.
     -   [ ] Review and remove any remaining unnecessary debug code or comments.
@@ -49,4 +50,4 @@
 ### Notes/Considerations:
 - Relationship queries should return source/target node details or just IDs? Decide on response structure.
 - Category structure is pre-defined; API might primarily be for retrieval in Phase 1.
-- Fixing skipped tests might involve adjusting fixtures or test logic. 
+- Fixing skipped tests might involve adjusting fixtures or test logic.

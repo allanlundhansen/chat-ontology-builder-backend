@@ -6,7 +6,8 @@ class RelationshipProperties(BaseModel):
     """Properties associated with a relationship."""
     # Common properties
     confidence_score: Optional[float] = Field(0.5, ge=0.0, le=1.0)
-    creation_timestamp: Optional[datetime.datetime] = None # Often set by DB on creation
+    created_at: Optional[datetime.datetime] = None # Renamed from creation_timestamp
+    updated_at: Optional[datetime.datetime] = None # Added updated_at
     source_information: Optional[str] = None # Added source information
 
     # Spatial properties (optional)
@@ -57,7 +58,7 @@ class RelationshipInfo(BaseModel):
     target_id: str
     target_name: Optional[str] = None # Made optional
     rel_type: str = Field(..., alias="type") # Alias 'type' from DB to 'rel_type' if needed
-    properties: Dict[str, Any]
+    properties: RelationshipProperties
 
     model_config = ConfigDict(
         populate_by_name=True, # Allow using alias 'type'
@@ -68,7 +69,7 @@ class RelationshipInfo(BaseModel):
                  "target_id": "4:target-id:2",
                  "target_name": "Concept B",
                  "rel_type": "CAUSES",
-                 "properties": {"confidence_score": 0.9, "creation_timestamp": "2023-10-27T12:00:00Z"}
+                 "properties": {"confidence_score": 0.9, "created_at": "2023-10-27T12:00:00Z"}
              }
          }
     )
@@ -112,7 +113,7 @@ class RelationshipListResponse(BaseModel):
                         "target_id": "4:target-id:2",
                         "target_name": "Concept B",
                         "rel_type": "CAUSES",
-                        "properties": {"confidence_score": 0.9, "creation_timestamp": "2023-10-27T12:00:00Z"}
+                        "properties": {"confidence_score": 0.9, "created_at": "2023-10-27T12:00:00Z"}
                     },
                     {
                         "element_id": "5:rel-element-id:456", # Added element_id
@@ -120,7 +121,7 @@ class RelationshipListResponse(BaseModel):
                         "source_name": "Concept C",
                         "target_id": "4:target-id:4",
                         "rel_type": "IS_PART_OF",
-                        "properties": {"confidence_score": 1.0, "creation_timestamp": "2023-10-28T10:00:00Z"}
+                        "properties": {"confidence_score": 1.0, "created_at": "2023-10-28T10:00:00Z"}
                     }
                 ],
                 "total_count": 42 # Example total count
@@ -132,7 +133,8 @@ class RelationshipListResponse(BaseModel):
 class RelationshipPropertiesUpdate(BaseModel):
     """Properties that can be updated on a relationship. All fields are optional."""
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
-    # creation_timestamp is generally system-set, probably shouldn't be updatable by user PATCH
+    # created_at is generally system-set, probably shouldn't be updatable by user PATCH
+    updated_at: Optional[datetime.datetime] = None # Added updated_at
     source_information: Optional[str] = None # Added source information
     distance: Optional[float] = None
     spatial_unit: Optional[str] = None

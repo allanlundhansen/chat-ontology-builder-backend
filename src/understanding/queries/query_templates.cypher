@@ -203,7 +203,69 @@ CALL apoc.custom.asProcedure(
    ORDER BY confidence DESC
    LIMIT $limit',
   'READ',
-  [['conceptId', 'STRING'], ['limit', 'INTEGER', 50]], 
-  [['id', 'STRING'], ['name', 'STRING'], ['description', 'STRING'], 
+  [['conceptId', 'STRING'], ['limit', 'INTEGER', 50]],
+  [['id', 'STRING'], ['name', 'STRING'], ['description', 'STRING'],
    ['relationType', 'STRING'], ['distance', 'STRING'], ['confidence', 'FLOAT']]
+);
+
+// --- CRUD OPERATIONS for Concepts ---
+
+// Create Concept
+CALL apoc.custom.asProcedure(
+  'createConcept',
+  // Takes parameters matching ConceptCreate model fields (mapped in endpoint)
+  'CREATE (c:Concept {
+      name: $name,
+      description: $description,
+      quality: $quality,
+      modality: $modality,
+      stability: $stability,
+      confidence_score: $confidence_score,
+      created_at: datetime(),
+      updated_at: datetime()
+   })
+   RETURN c { .*, elementId: elementId(c) } AS c',
+  'WRITE',
+  // Define input parameters based on ConceptCreate and how endpoint prepares them
+  [['name', 'STRING'], ['description', 'STRING'], ['quality', 'STRING'], ['modality', 'STRING'], ['stability', 'STRING'], ['confidence_score', 'FLOAT']],
+  // Define output structure
+  [['c', 'MAP']]
+);
+
+// Get Concept By Element ID
+CALL apoc.custom.asProcedure(
+  'getConceptById',
+  'MATCH (c:Concept)
+   WHERE elementId(c) = $element_id
+   RETURN c { .*, elementId: elementId(c) } AS c',
+  'READ',
+  [['element_id', 'STRING']],
+  [['c', 'MAP']]
+);
+
+// Update Concept Partially
+CALL apoc.custom.asProcedure(
+  'updateConceptPartial',
+  // $update_data is a map prepared by the endpoint
+  'MATCH (c:Concept)
+   WHERE elementId(c) = $element_id
+   SET c += $update_data, c.updated_at = datetime()
+   RETURN c { .*, elementId: elementId(c) } AS c',
+  'WRITE',
+  // Input: element_id and a map of properties to update
+  [['element_id', 'STRING'], ['update_data', 'MAP']],
+  // Output: the updated concept map
+  [['c', 'MAP']]
+);
+
+// Delete Concept By Element ID
+CALL apoc.custom.asProcedure(
+  'deleteConcept',
+  'MATCH (c:Concept)
+   WHERE elementId(c) = $element_id
+   DETACH DELETE c
+   RETURN count(c) AS deleted_count', // Return count for confirmation (optional)
+  'WRITE',
+  [['element_id', 'STRING']],
+  [['deleted_count', 'INTEGER']]
 ); 

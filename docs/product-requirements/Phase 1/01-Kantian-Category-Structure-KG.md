@@ -79,7 +79,8 @@ The KantAI backend requires a robust, philosophically grounded knowledge represe
     - confidence
 - Each relationship should have common properties:
   - Confidence score
-  - Creation timestamp
+  - `created_at`: Timestamp of creation.
+  - `updated_at`: Timestamp of last update (set on PATCH).
   - Source information
   - Temporal qualifiers (if applicable)
 
@@ -157,7 +158,7 @@ We'll split the implementation into smaller, manageable tasks:
 - [x] Add Quality and Modality properties with appropriate constraints (**Note:** Application-level validation implemented and tested via API)
 - [ ] Implement INSTANCE_OF relationships for classification under Quantity and Relation subcategories
 - [x] Create indices for efficient concept retrieval, including indices for Quality and Modality properties
-- [x] **Steps to Test**: Create sample concepts and verify they can be properly classified using both properties and relationships (Partially done via `POST /concepts` API tests for property validation and `GET /concepts/{id}` for retrieval).
+- [x] **Steps to Test**: Create sample concepts and verify they can be properly classified using both properties and relationships (Partially done via `POST /concepts` API tests for property validation and `GET /concepts/{id}` for retrieval). Concept CRUD fully tested.
 
 ### Task 3: Relationship Type Implementation
 - [ ] Create semantic relationship types (CAUSES, HAS_PROPERTY, etc.) with properties
@@ -165,12 +166,14 @@ We'll split the implementation into smaller, manageable tasks:
 - [x] Add constraints to ensure relationships have required properties (**Note:** Application-level validation for `spatial_unit` implemented and tested via API)
 - [ ] Add indices for relationship queries
 - [x] **Steps to Test**: Create sample relationships between concepts and verify they conform to requirements (Partially done via `POST /relationships` API tests for spatial validation)
+- [x] **Steps to Test**: Create sample relationships between concepts and verify they conform to requirements (Partially done via `POST`, `GET`, `PATCH` API tests).
 
 ### Task 4: Query Development
 - [ ] Develop Cypher queries for retrieving concepts by all four categories
 - [ ] Create queries for navigating semantic, temporal, and spatial relationships
 - [x] Implement filtering based on confidence and stability (**Note:** Basic `CREATE` and `GET` queries with property handling/filtering implemented in API endpoints)
 - [x] **Steps to Test**: Execute sample queries against test data and verify correct results (Partially done via `POST` and `GET` API endpoint tests).
+- [x] **Steps to Test**: Execute sample queries against test data and verify correct results (Partially done via `POST`, `GET` (list/detail), `PATCH` API endpoint tests for concepts and relationships).
 
 ### Task 5: Documentation and Sample Data
 - [ ] Document the entire schema with diagrams, clearly explaining the hybrid approach

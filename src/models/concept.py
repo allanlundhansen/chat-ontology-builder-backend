@@ -4,7 +4,7 @@ import datetime # Import datetime
 
 class Concept(BaseModel):
     """Represents a concept node retrieved from the database."""
-    id: str # Usually the Neo4j internal ID or a custom UUID
+    # id: str # Usually the Neo4j internal ID or a custom UUID
     elementId: Optional[str] = None # Neo4j internal element ID
     name: str
     description: Optional[str] = None
@@ -66,7 +66,10 @@ class ConceptResponse(Concept):
     """Schema for the response when a concept is created or retrieved."""
     # Inherits all fields from Concept
     # You can add or override fields specifically for responses if needed
-    pass
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True, # Keep if inherited config used it
+    )
 
 # Properties that can be received PATCH requests for a concept
 class ConceptUpdate(BaseModel):

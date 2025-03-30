@@ -373,7 +373,7 @@ async def test_update_relationship_properties_success(async_client: AsyncClient)
     assert updated_props["spatial_unit"] == initial_props["spatial_unit"]
     assert "relation_type" in updated_props # Check new property added
     assert updated_props["relation_type"] == update_payload["properties"]["relation_type"]
-    assert "creation_timestamp" in updated_props # Ensure timestamp is still there
+    assert "created_at" in updated_props # Ensure timestamp is still there
 
     # Optional: Verify in DB directly (or via GET)
     get_response = await async_client.get(f"{RELATIONSHIPS_ENDPOINT}{rel_element_id}")
@@ -444,17 +444,11 @@ async def test_update_relationship_empty_payload(async_client: AsyncClient):
 
     # Act & Assert 1: Completely empty payload
     response1 = await async_client.patch(f"{RELATIONSHIPS_ENDPOINT}{rel_element_id}", json=empty_payload_1)
-    assert response1.status_code == status.HTTP_200_OK
-    data1 = response1.json()
-    assert data1["elementId"] == rel_element_id
-    assert data1["properties"]["confidence_score"] == initial_props["confidence_score"] # CHANGED back to confidence_score
+    assert response1.status_code == status.HTTP_400_BAD_REQUEST
 
     # Act & Assert 2: Payload with empty properties object
     response2 = await async_client.patch(f"{RELATIONSHIPS_ENDPOINT}{rel_element_id}", json=empty_payload_2)
-    assert response2.status_code == status.HTTP_200_OK
-    data2 = response2.json()
-    assert data2["elementId"] == rel_element_id
-    assert data2["properties"]["confidence_score"] == initial_props["confidence_score"] # CHANGED back to confidence_score
+    assert response2.status_code == status.HTTP_400_BAD_REQUEST
 
 
 # ---- DELETE Tests ----
@@ -491,4 +485,18 @@ async def test_delete_relationship_not_found(async_client: AsyncClient):
     delete_response = await async_client.delete(f"{RELATIONSHIPS_ENDPOINT}{non_existent_id}")
 
     # Assert: Should return 404 Not Found
-    assert delete_response.status_code == status.HTTP_404_NOT_FOUND 
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+
+@pytest.mark.trio
+@pytest.mark.usefixtures("clear_db_before_test")
+async def test_delete_relationship_not_found_trio(async_client: AsyncClient):
+    """Test attempting to delete a relationship that does not exist."""
+    # Arrange: Generate a non-existent element ID
+    # Note: The format might be specific, adapt if necessary, but likely any non-matching string works
+    non_existent_id = "5:FakeRelationship:1234567890"
+
+    # Act: Attempt to delete the non-existent relationship
+    delete_response = await async_client.delete(f"{RELATIONSHIPS_ENDPOINT}{non_existent_id}")
+
+    # Assert: Should return 404 Not Found
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT 

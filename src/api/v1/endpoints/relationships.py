@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Response
-from neo4j import AsyncDriver, AsyncSession, AsyncTransaction, AsyncResult, Record, exceptions as neo4j_exceptions, ResultSummary
+from neo4j import AsyncDriver, AsyncTransaction, AsyncResult, Record, exceptions as neo4j_exceptions, ResultSummary
 from pydantic import ValidationError
 from typing import Optional, Dict, Any, List, Annotated
 import traceback
@@ -9,6 +9,8 @@ from src.db.neo4j_driver import get_db
 from src.validation.kantian_validator import KantianValidator, KantianValidationError
 # --- Import models from the correct location ---
 from src.models.relationship import RelationshipCreate, RelationshipResponse, RelationshipProperties, RelationshipListResponse, RelationshipUpdate, RelationshipPropertiesUpdate
+# --- Import the datetime conversion helper --- #
+from src.api.v1.endpoints.concepts import convert_neo4j_datetimes
 
 router = APIRouter()
 
@@ -23,9 +25,10 @@ async def handle_list_relationships(
     skip: int = Query(0, ge=0, description="Number of relationships to skip"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of relationships to return"),
     type: Optional[str] = Query(None, description="Filter relationships by type (case-insensitive)"),
-    session: AsyncSession = Depends(get_db)
+    tx: AsyncTransaction = Depends(get_db)
 ):
     """Handles listing relationships with filtering and pagination."""
+    endpoint_name = "ListRelationships"
     try:
         # Build the Cypher query
         match_clause = "MATCH (source)-[rel]->(target)"
@@ -53,12 +56,11 @@ async def handle_list_relationships(
                 target.name AS target_name,
                 type(rel) AS type,
                 properties(rel) AS properties
-            ORDER BY properties(rel).creation_timestamp DESC
+            ORDER BY properties(rel).created_at DESC
             SKIP $skip
             LIMIT $limit
         """
-        parameters["skip"] = skip
-        parameters["limit"] = limit
+        list_parameters = {**parameters, "skip": skip, "limit": limit}
 
         # Query to get the total count (optional but good for pagination UI)
         count_query = f"""
@@ -66,35 +68,48 @@ async def handle_list_relationships(
             {where_clause}
             RETURN count(rel) AS total_count
         """
-        # Remove pagination parameters for count query
-        count_parameters = {k: v for k, v in parameters.items() if k not in ["skip", "limit"]}
+        count_parameters = parameters # Use the same base parameters
 
-        async def transaction_work(tx: AsyncTransaction, list_q: str, list_p: dict, count_q: str, count_p: dict):
-            list_result: AsyncResult = await tx.run(list_q, list_p)
-            # Fetch data as list of dictionaries
-            records_data: List[Dict] = await list_result.data()
-            relationships = [RelationshipResponse.model_validate(record_data) for record_data in records_data]
+        # Execute list query directly using tx.run()
+        print(f"DEBUG ({endpoint_name}): Executing list query: {list_query} with params: {list_parameters}")
+        list_result: AsyncResult = await tx.run(list_query, list_parameters)
+        records_data: List[Dict] = await list_result.data() # Fetch data as list of dictionaries
+        list_summary = await list_result.consume()
+        print(f"DEBUG ({endpoint_name}): List query executed. Summary: {list_summary.counters}. Found {len(records_data)} records.")
 
-            count_result: AsyncResult = await tx.run(count_q, count_p)
-            count_record: Optional[Record] = await count_result.single()
-            total_count = count_record["total_count"] if count_record else 0
+        # Validate relationships, converting datetimes within properties first
+        relationships = []
+        for record_data in records_data:
+            if 'properties' in record_data and record_data['properties']:
+                # Convert datetimes within the properties dict
+                record_data['properties'] = convert_neo4j_datetimes(record_data['properties'])
+            try:
+                relationships.append(RelationshipResponse.model_validate(record_data))
+            except ValidationError as val_err:
+                print(f"ERROR ({endpoint_name}): Pydantic validation failed for record: {record_data}. Error: {val_err}")
+                # Optionally skip or raise, here we skip and log
 
-            return {"relationships": relationships, "total_count": total_count}
+        # Execute count query directly using tx.run()
+        print(f"DEBUG ({endpoint_name}): Executing count query: {count_query} with params: {count_parameters}")
+        count_result: AsyncResult = await tx.run(count_query, count_parameters)
+        count_record: Optional[Record] = await count_result.single()
+        count_summary = await count_result.consume()
+        print(f"DEBUG ({endpoint_name}): Count query executed. Summary: {count_summary.counters}.")
+        total_count = count_record["total_count"] if count_record else 0
 
-        result_data = await session.execute_read(
-            lambda tx: transaction_work(tx, list_query, parameters, count_query, count_parameters)
-        )
+        # Construct response
+        result_data = {"relationships": relationships, "total_count": total_count}
 
         return RelationshipListResponse.model_validate(result_data)
 
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (List Relationships): Database error - {db_err}")
+    except neo4j_exceptions.Neo4jError as db_err:
+        print(f"ERROR ({endpoint_name}): Database error - {db_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error listing relationships: {db_err.code}")
     except ValidationError as pydantic_err:
-        print(f"ERROR (List Relationships): Pydantic validation failed: {pydantic_err}")
+        print(f"ERROR ({endpoint_name}): Pydantic validation failed: {pydantic_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing relationship data.")
     except Exception as e:
-        print(f"ERROR (List Relationships): Unexpected error - {e}")
+        print(f"ERROR ({endpoint_name}): Unexpected error - {e}")
         traceback.print_exc()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while listing relationships.")
 
@@ -108,104 +123,104 @@ async def handle_list_relationships(
 )
 async def handle_create_relationship(
     rel_in: RelationshipCreate, # Use imported input model
-    session: AsyncSession = Depends(get_db)
+    tx: AsyncTransaction = Depends(get_db)
 ):
     """Handles the creation of a new relationship."""
+    endpoint_name = "CreateRelationship"
     try:
         # 1. Perform Kantian Validation (Pydantic checks done)
         # Pass properties dict to validator
         # Use exclude_unset=True to only pass properties explicitly provided in the request
         props_to_validate = rel_in.properties.model_dump(exclude_unset=True)
         KantianValidator.validate_relationship(rel_in.type, props_to_validate)
+        print(f"DEBUG ({endpoint_name}): Kantian validation passed for type {rel_in.type}.")
 
-        # 2. Database Interaction
-        # NOTE: Use apoc.nodes.get for potentially better transactional visibility
-        # Try standard Cypher first
-        # Define the transaction work function
-        async def transaction_work(tx: AsyncTransaction, params: dict) -> dict:
-            # Extract parameters for clarity
-            source_id = params["source_id"]
-            target_id = params["target_id"]
-            rel_type = params["rel_type"]
-            properties = params["properties"] # Raw properties from input
+        # 2. Prepare parameters and query
+        source_id = rel_in.source_id
+        target_id = rel_in.target_id
+        rel_type = rel_in.type
+        # Start with input properties, add timestamp, filter None
+        properties = rel_in.properties.model_dump(exclude_unset=False) # Get all, including defaults
+        properties["created_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        properties["updated_at"] = properties["created_at"] # Set updated_at on creation
+        final_properties = {k: v for k, v in properties.items() if v is not None}
 
-            # Add creation timestamp and filter out None values
-            properties['creation_timestamp'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            final_properties = {k: v for k, v in properties.items() if v is not None}
+        # Construct the query dynamically
+        query = f"""
+        MATCH (source) WHERE elementId(source) = $source_id
+        MATCH (target) WHERE elementId(target) = $target_id
+        CREATE (source)-[rel:`{rel_type}`]->(target)
+        SET rel = $properties // Use filtered properties
+        RETURN
+            elementId(rel) AS elementId,
+            elementId(source) AS source_id,
+            source.name AS source_name,
+            elementId(target) AS target_id,
+            target.name AS target_name,
+            type(rel) AS type,
+            properties(rel) AS properties
+        """
 
-            # Construct the query dynamically using f-string for relationship type
-            query = f"""
-            MATCH (source) WHERE elementId(source) = $source_id
-            MATCH (target) WHERE elementId(target) = $target_id
-            // Create the relationship with dynamic type
-            CREATE (source)-[rel:`{rel_type}`]->(target)
-            SET rel = $properties // Use filtered properties
-            // Return data matching RelationshipResponse
-            RETURN
-                elementId(rel) AS elementId,
-                elementId(source) AS source_id,
-                source.name AS source_name,
-                elementId(target) AS target_id,
-                target.name AS target_name,
-                type(rel) AS type,
-                properties(rel) AS properties
-            """
+        # Prepare parameters for the transaction
+        tx_params = {
+            "source_id": source_id,
+            "target_id": target_id,
+            "properties": final_properties, # Pass the filtered properties
+        }
 
-            # Prepare parameters for the transaction
-            tx_params = {
-                "source_id": source_id,
-                "target_id": target_id,
-                "properties": final_properties, # Pass the filtered properties
-            }
+        # 3. Execute Write Transaction directly using tx.run()
+        print(f"DEBUG ({endpoint_name}): Executing query: {query} with params: {tx_params}")
+        result: AsyncResult = await tx.run(query, tx_params)
+        record: Optional[Record] = await result.single() # Get the single record
+        summary: ResultSummary = await result.consume() # Consume the result
+        print(f"DEBUG ({endpoint_name}): Query executed. Summary: {summary.counters}")
 
-            # Execute the query
-            result = await tx.run(query, tx_params)
-            record: Optional[Record] = await result.single() # Get the single record
-            summary: ResultSummary = await result.consume() # Consume the result to get the summary
+        # Check if the relationship was created and data returned
+        if record and summary.counters.relationships_created == 1:
+            created_rel_data = record.data()
+            print(f"DEBUG ({endpoint_name}): Relationship created successfully: {created_rel_data}")
+            # Validate the DB data against the response model
+            return RelationshipResponse.model_validate(created_rel_data)
+        elif record is None and summary.counters.relationships_created == 0:
+            # Check if nodes were found before concluding it's a 404
+            # Run checks within the same transaction for consistency
+            source_exists_res = await tx.run("MATCH (n) WHERE elementId(n) = $id RETURN count(n) > 0 AS exists", {"id": source_id})
+            source_exists = (await source_exists_res.single())['exists']
+            await source_exists_res.consume()
+            target_exists_res = await tx.run("MATCH (n) WHERE elementId(n) = $id RETURN count(n) > 0 AS exists", {"id": target_id})
+            target_exists = (await target_exists_res.single())['exists']
+            await target_exists_res.consume()
 
-            if record is None:
-                # print(f"DEBUG: Record is None. Nodes likely not found for IDs: {params.get('source_id')}, {params.get('target_id')}")
-                raise ValueError(f"Could not create relationship. Source/Target node (elementId: {params.get('source_id')} or {params.get('target_id')}) might not exist.")
-
-            # Now 'summary' is defined and can be used here
-            if summary.counters.relationships_created != 1:
-                # print(f"DEBUG: Relationships created count is {summary.counters.relationships_created}, expected 1.")
-                # print(f"DEBUG: Full summary when creation failed: {summary.__dict__}")
-                raise ValueError(f"Relationship creation failed unexpectedly after finding nodes (elementId: {params.get('source_id')}, {params.get('target_id')}). Summary: {summary}")
-
-            # print(f"DEBUG: Transaction successful. Returning record data: {record.data()}")
-            return record.data()
-
-        created_rel_data = await session.execute_write(
-            lambda tx: transaction_work(tx, {
-                "source_id": rel_in.source_id,
-                "target_id": rel_in.target_id,
-                "rel_type": rel_in.type,
-                "properties": rel_in.properties.model_dump(exclude_unset=False) # Pass raw properties dict
-            })
-        )
-
-        if not created_rel_data:
-            print(f"DEBUG: Record is None. Nodes likely not found for IDs: {rel_in.source_id}, {rel_in.target_id}")
-            raise ValueError(f"Could not create relationship. Source/Target node (elementId: {rel_in.source_id} or {rel_in.target_id}) might not exist.")
-
-        # Validate the DB data against the response model before returning
-        return RelationshipResponse.model_validate(created_rel_data)
+            if not source_exists or not target_exists:
+                missing_id = source_id if not source_exists else target_id
+                error_detail = f"Could not create relationship. Source/Target node (elementId: {missing_id}) not found."
+                print(f"INFO ({endpoint_name}): {error_detail}")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail)
+            else:
+                # Nodes exist but relationship wasn't created - unexpected DB issue?
+                error_detail = f"Relationship creation failed unexpectedly after finding nodes. Summary: {summary}"
+                print(f"ERROR ({endpoint_name}): {error_detail}")
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error during relationship creation.")
+        else:
+            # Other unexpected cases
+            error_detail = f"Relationship creation failed. Record: {record.data() if record else 'None'}, Summary: {summary}"
+            print(f"ERROR ({endpoint_name}): {error_detail}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error creating relationship.")
 
     except KantianValidationError as exc:
-        raise exc # Handled by main.py exception handler
-    except ValueError as val_err: # Catch node not found error
-         print(f"ERROR (Create Relationship): Value error - {val_err}")
-         # Reverted detail message
-         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(val_err))
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (Create Relationship): Database error - {db_err}")
+        print(f"ERROR ({endpoint_name}): Kantian validation failed - {exc}")
+        # Let the main handler manage the 422 response
+        raise exc
+    except HTTPException as http_err: # Re-raise 404 or other HTTP exceptions
+        raise http_err
+    except neo4j_exceptions.Neo4jError as db_err:
+        print(f"ERROR ({endpoint_name}): Database error - {db_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error: {db_err.code}")
     except ValidationError as pydantic_err: # Error validating DB result
-         print(f"ERROR (Create Relationship): Pydantic validation failed for DB result: {pydantic_err}")
-         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing created relationship.")
+        print(f"ERROR ({endpoint_name}): Pydantic validation failed for DB result: {pydantic_err}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing created relationship.")
     except Exception as e:
-        print(f"ERROR (Create Relationship): Unexpected error - {e}")
+        print(f"ERROR ({endpoint_name}): Unexpected error - {e}")
         traceback.print_exc()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
 
@@ -217,10 +232,11 @@ async def handle_create_relationship(
     description="Retrieve a single relationship by its unique element ID."
 )
 async def get_relationship_by_id(
-    session: Annotated[AsyncSession, Depends(get_db)],
+    tx: Annotated[AsyncTransaction, Depends(get_db)],
     element_id: str = Path(..., description="The unique element ID of the relationship to retrieve.")
 ) -> RelationshipResponse:
     """Retrieve a single relationship by its element ID."""
+    endpoint_name = f"GetRelationshipByID:{element_id}"
     query = (
         "MATCH (source)-[r]-(target) "
         "WHERE elementId(r) = $element_id "
@@ -229,35 +245,47 @@ async def get_relationship_by_id(
         "    type(r) AS type, "
         "    properties(r) AS properties, "
         "    elementId(source) AS source_id, "
-        "    elementId(target) AS target_id "
+        "    source.name AS source_name, "
+        "    elementId(target) AS target_id, "
+        "    target.name AS target_name "
     )
+    params = {"element_id": element_id}
+
+    print(f"DEBUG ({endpoint_name}): Executing query: {query} with params: {params}")
 
     try:
-        result = await session.run(query, {"element_id": element_id})
-        record = await result.single()
-        
+        # Use tx.run() directly
+        result: AsyncResult = await tx.run(query, params)
+        record: Optional[Record] = await result.single()
+        summary = await result.consume()
+        print(f"DEBUG ({endpoint_name}): Query executed. Summary: {summary.counters}")
+
         if record is None:
-            # Raise the 404, FastAPI will handle it correctly
+            # Raise the 404
+            detail = f"Relationship with element ID '{element_id}' not found."
+            print(f"INFO ({endpoint_name}): {detail}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Relationship with element ID '{element_id}' not found."
+                detail=detail
             )
 
-        # Directly create the Pydantic model from the record dictionary
-        return RelationshipResponse.model_validate(record.data())
+        # Validate the returned data
+        rel_data = record.data()
+        print(f"DEBUG ({endpoint_name}): Relationship found: {rel_data}")
+        return RelationshipResponse.model_validate(rel_data)
 
     except HTTPException as http_exc: # Re-raise HTTPExceptions directly
         raise http_exc
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (Get Relationship by ID): Database error - {db_err}")
+    except neo4j_exceptions.Neo4jError as db_err:
+        print(f"ERROR ({endpoint_name}): Database error - {db_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error retrieving relationship: {db_err.code}")
     except ValidationError as pydantic_err:
-        print(f"ERROR (Get Relationship by ID): Pydantic validation failed: {pydantic_err}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing relationship data.")
+        print(f"ERROR ({endpoint_name}): Pydantic validation failed for DB result: {pydantic_err}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error processing relationship data.")
     except Exception as e:
-        print(f"ERROR (Get Relationship by ID): Unexpected error - {e}")
+        print(f"ERROR ({endpoint_name}): Unexpected error - {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while retrieving the relationship.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred retrieving the relationship.")
 
 # Endpoint to update a relationship by its element ID (PATCH)
 @router.patch(
@@ -269,92 +297,119 @@ async def get_relationship_by_id(
 )
 async def update_relationship(
     update_data: RelationshipUpdate,
-    session: Annotated[AsyncSession, Depends(get_db)],
-    element_id: str = Path(..., description="The unique element ID of the relationship to update.")
+    element_id: str = Path(..., description="The unique element ID of the relationship to update."),
+    tx: AsyncTransaction = Depends(get_db)
 ) -> RelationshipResponse:
     """Partially update a relationship's properties."""
+    endpoint_name = f"UpdateRelationship:{element_id}"
 
-    # Check if there's anything to update
-    if not update_data.properties:
-        # Optionally, return the existing relationship without modification or raise 400
-        # For now, let's just fetch and return the current state if no update data provided
-        return await get_relationship_by_id(session=session, element_id=element_id)
+    # Check if properties are provided and not None
+    if update_data.properties is None:
+        update_payload = {} # No properties to update
+    else:
+        # Get properties to update, excluding None values
+        update_payload = update_data.properties.model_dump(exclude_unset=True)
 
-    # Use model_dump to get only explicitly set fields in the request payload
-    update_payload = update_data.properties.model_dump(exclude_unset=True)
+    # Prevent updating with an empty properties dictionary if that's the intent
+    # Or handle fetching and returning existing if payload is empty
 
     if not update_payload:
-        # If properties object was provided but empty
-        return await get_relationship_by_id(session=session, element_id=element_id)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No properties provided for update."
+        )
 
-    # Perform Kantian Validation on the properties being updated
-    # Need the relationship type first
-    fetch_type_query = "MATCH ()-[r]-() WHERE elementId(r) = $element_id RETURN type(r) as type"
-    try:
-        type_result = await session.run(fetch_type_query, {"element_id": element_id})
-        type_record = await type_result.single()
-        if not type_record:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Relationship with element ID '{element_id}' not found.")
-        rel_type = type_record["type"]
+    # Add updated_at timestamp
+    update_payload["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-        # Validate the update payload against the type
-        KantianValidator.validate_relationship(rel_type, update_payload)
+    # Validate the *updated* properties against Kantian rules
+    # We need the relationship type for context. We can get it in the same transaction.
 
-    except KantianValidationError as exc:
-        raise exc # Let main handler manage this
-    except HTTPException as http_exc: # Add this block to handle specific HTTP exceptions first
-        raise http_exc
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (Update Relationship - Precheck): Database error fetching type - {db_err}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error during pre-update check: {db_err.code}")
-    except Exception as e:
-         print(f"ERROR (Update Relationship - Precheck): Unexpected error - {e}")
-         traceback.print_exc()
-         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during pre-update check.")
+    # Build SET clauses dynamically
+    set_clauses = []
+    for key, value in update_payload.items():
+        set_clauses.append(f"r.{key} = ${key}")
+    set_statement = ", ".join(set_clauses)
 
-    # Build the SET clause dynamically if needed, or just use += for properties
-    # Using += is simpler if we only update properties
-    query = (
-        "MATCH (source)-[r]-(target) "
-        "WHERE elementId(r) = $element_id "
-        "SET r += $update_payload " # Merges the new properties into the existing ones
-        "RETURN "
-        "    elementId(r) AS elementId, "
-        "    type(r) AS type, "
-        "    properties(r) AS properties, "
-        "    elementId(source) AS source_id, "
-        "    elementId(target) AS target_id "
-    )
+    # Combined query to get type, validate, update, and return
+    query = f"""
+    MATCH (source)-[r]-(target)
+    WHERE elementId(r) = $element_id
+    WITH r, source, target, type(r) as current_type
+    // Apply the SET clause
+    SET {set_statement}
+    // Return the updated relationship details
+    RETURN
+        elementId(r) AS elementId,
+        elementId(source) AS source_id,
+        source.name AS source_name,
+        elementId(target) AS target_id,
+        target.name AS target_name,
+        type(r) AS type, // Return the type
+        properties(r) AS properties // Return updated properties
+    """
+
+    params = {"element_id": element_id, **update_payload} # Combine ID and update data
+
+    print(f"DEBUG ({endpoint_name}): Executing update query: {query} with params: {params}")
 
     try:
-        result = await session.run(query, {"element_id": element_id, "update_payload": update_payload})
-        record = await result.single()
+        # Run the combined query
+        result: AsyncResult = await tx.run(query, params)
+        record: Optional[Record] = await result.single()
         summary = await result.consume()
+        print(f"DEBUG ({endpoint_name}): Update query executed. Summary: {summary.counters}")
 
-        # Check if the relationship was found and updated
-        if record is None or summary.counters.properties_set == 0:
-            # If the relationship didn't exist, the MATCH would fail, record is None
-            # If SET didn't do anything (unlikely with +=), properties_set might be 0
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Relationship with element ID '{element_id}' not found or no properties updated."
-            )
+        if record and summary.counters.properties_set > 0:
+            updated_rel_data = record.data()
+            # --- Convert datetimes before validation --- #
+            if 'properties' in updated_rel_data and updated_rel_data['properties']:
+                converted_properties = convert_neo4j_datetimes(updated_rel_data['properties'])
+                updated_rel_data['properties'] = converted_properties # Update the dict for model validation
+            else:
+                converted_properties = {}
 
-        # Validate and return the updated relationship
-        return RelationshipResponse.model_validate(record.data())
+            # Perform Kantian validation *after* getting the type and updated props
+            try:
+                KantianValidator.validate_relationship(updated_rel_data['type'], converted_properties)
+                print(f"DEBUG ({endpoint_name}): Kantian validation passed for updated properties.")
+            except KantianValidationError as val_err:
+                # If validation fails *after* update, this is tricky. Ideally, validate before SET.
+                # For now, raise 422, though DB state is already changed.
+                # Consider a two-step transaction or pre-flight check if strict atomicity is needed.
+                print(f"ERROR ({endpoint_name}): Kantian validation failed AFTER update: {val_err}")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(val_err))
 
-    except HTTPException as http_exc: # Re-raise HTTPExceptions (like 404 or validation error)
+            print(f"DEBUG ({endpoint_name}): Relationship updated successfully: {updated_rel_data}")
+            # Now validate the full response data (with converted properties)
+            return RelationshipResponse.model_validate(updated_rel_data)
+
+        elif record is None and summary.counters.properties_set == 0:
+            # Relationship not found
+            detail = f"Relationship with element ID '{element_id}' not found for update."
+            print(f"INFO ({endpoint_name}): {detail}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+        else:
+            # Relationship found but no properties set? Unexpected.
+            error_detail = f"Update failed unexpectedly. Record: {record.data() if record else 'None'}, Summary: {summary}"
+            print(f"ERROR ({endpoint_name}): {error_detail}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error during relationship update.")
+
+    except KantianValidationError as exc: # If validation before query fails (if implemented)
+        print(f"ERROR ({endpoint_name}): Kantian validation failed - {exc}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except HTTPException as http_exc: # Re-raise 404, 400, 422
         raise http_exc
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (Update Relationship): Database error - {db_err}")
+    except neo4j_exceptions.Neo4jError as db_err:
+        print(f"ERROR ({endpoint_name}): Database error - {db_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error updating relationship: {db_err.code}")
-    except ValidationError as pydantic_err:
-        print(f"ERROR (Update Relationship): Pydantic validation failed for updated data: {pydantic_err}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing updated relationship.")
+    except ValidationError as pydantic_err: # Error validating DB result
+        print(f"ERROR ({endpoint_name}): Pydantic validation failed for updated DB result: {pydantic_err}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal error processing updated relationship data.")
     except Exception as e:
-        print(f"ERROR (Update Relationship): Unexpected error - {e}")
+        print(f"ERROR ({endpoint_name}): Unexpected error - {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while updating the relationship.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred updating the relationship.")
 
 # Endpoint to delete a relationship by its element ID
 @router.delete(
@@ -365,38 +420,45 @@ async def update_relationship(
     tags=["Relationships"]
 )
 async def delete_relationship(
-    session: Annotated[AsyncSession, Depends(get_db)],
-    element_id: str = Path(..., description="The unique element ID of the relationship to delete.")
+    element_id: str = Path(..., description="The unique element ID of the relationship to delete."),
+    tx: AsyncTransaction = Depends(get_db)
 ):
     """Delete a relationship by its unique element ID."""
-    query = (
-        "MATCH ()-[r]-() "
-        "WHERE elementId(r) = $element_id "
-        "DETACH DELETE r "
-        "RETURN count(r) as deleted_count"
-    )
+    endpoint_name = f"DeleteRelationshipByID:{element_id}"
+    query = "MATCH ()-[r]-() WHERE elementId(r) = $element_id DETACH DELETE r RETURN count(r) AS deleted_count"
+    params = {"element_id": element_id}
+
+    print(f"DEBUG ({endpoint_name}): Attempting to delete relationship with element ID: {element_id}")
+
     try:
-        result = await session.run(query, {"element_id": element_id})
-        summary = await result.consume()
+        # Use tx.run() directly
+        result: AsyncResult = await tx.run(query, params)
+        # If DETACH DELETE is used, single() might return None even if deleted
+        # Check the summary instead
+        # record: Optional[Record] = await result.single()
+        summary: ResultSummary = await result.consume()
+        print(f"DEBUG ({endpoint_name}): Delete query executed. Summary: {summary.counters}")
 
-        # Check if any relationship was actually deleted
-        # Neo4j counts relationships deleted in the summary
-        if summary.counters.relationships_deleted == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Relationship with element ID '{element_id}' not found."
-            )
-        
-        # If deletion was successful, return 204 No Content
-        # FastAPI handles this automatically based on the status_code in the decorator
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        deleted_count = summary.counters.relationships_deleted
 
-    except HTTPException as http_exc: # Re-raise 404
-        raise http_exc
-    except (neo4j_exceptions.Neo4jError, neo4j_exceptions.DriverError) as db_err:
-        print(f"ERROR (Delete Relationship): Database error - {db_err}")
+        if deleted_count == 1:
+            print(f"INFO ({endpoint_name}): Relationship with element ID '{element_id}' deleted successfully.")
+            # Return None for 204 status
+            return None
+        elif deleted_count == 0:
+            # Relationship not found, but DELETE is idempotent, so return 204
+            print(f"INFO ({endpoint_name}): Relationship with element ID '{element_id}' not found (idempotent delete).")
+            return None
+        else:
+            # Should not happen with elementId
+            print(f"WARN ({endpoint_name}): Unexpectedly deleted {deleted_count} relationships for element ID '{element_id}'.")
+            # Still return success as *a* relationship was likely deleted
+            return None
+
+    except neo4j_exceptions.Neo4jError as db_err:
+        print(f"ERROR ({endpoint_name}): Database error during deletion - {db_err}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error deleting relationship: {db_err.code}")
     except Exception as e:
-        print(f"ERROR (Delete Relationship): Unexpected error - {e}")
+        print(f"ERROR ({endpoint_name}): Unexpected error during deletion - {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while deleting the relationship.") 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during relationship deletion.") 
