@@ -1,6 +1,6 @@
 # Progress - Project: KantAI Backend
 
-*Last Updated: 2024-08-02*
+*Last Updated: 2024-08-05*
 
 ## What Works
 
@@ -25,6 +25,9 @@
   - `POST /`: Implemented and tested (basic creation, spatial validation, dynamic types).
   - `GET /`: Implemented and tested (listing, filtering, pagination).
   - `GET /{element_id}`: Implemented and tested (single relationship retrieval).
+- **Categories (`/api/v1/categories`)**:
+  - `GET /` endpoint implemented and tested.
+  - `GET /{name}` endpoint implemented and tested.
 
 ### Database Layer
 - Cypher queries for Concept CRUD (Create, Read - list/detail, Update - partial, Delete) are functional within API endpoints.
@@ -41,6 +44,7 @@
 - Resolved issues with relationship updates (`PATCH`) regarding datetime serialization (`neo4j.time.DateTime`) and property consistency (`created_at`/`updated_at`).
 - Concept CRUD queries refactored to Python constants (`src/cypher_queries/concept_queries.py`) removing reliance on `cypher_loader` for these core operations.
 - Full test suite passing (85 passed, 9 skipped, 7 warnings) as of 2024-08-02.
+- Removed deprecated `src/utils/cypher_loader.py` file.
 
 ## What's Left to Build
 
@@ -49,7 +53,7 @@
   - `UPDATE` (`PUT` or `PATCH`) endpoint.
   - `DELETE` endpoint.
 - **Categories (`/api/v1/categories`)**:
-  - All CRUD endpoints.
+  - No further endpoints planned for Phase 1 (POST/PATCH/DELETE intentionally skipped).
 - **Handling `INSTANCE_OF`**: Define API management.
 - **Advanced Querying**: Expose via API.
 
@@ -61,9 +65,8 @@
 - Finalize indexing strategy.
 
 ### Testing
-- Integration tests for remaining Relationship CRUD (`GET /{id}`, `UPDATE`, `DELETE`) & Category CRUD.
-- Integration tests for remaining Relationship CRUD (`DELETE`) & Category CRUD.
-- Tests for `INSTANCE_OF` management.
+- Integration tests for remaining Relationship CRUD (`GET /{id}`, `UPDATE`, `DELETE`) & Category CRUD - **Scope Reduced**: Only GET endpoints are tested as POST/PATCH/DELETE were omitted.
+- Integration tests for `INSTANCE_OF` management.
 - Tests for advanced query endpoints.
 - Address skipped tests.
 - Address skipped tests and investigate warnings.
@@ -81,4 +84,5 @@
 - **Philosophical Simplifications**: Quality/Modality as properties. See `Philosophical-Considerations-Category-Implementation.md`. (Ongoing awareness).
 - **API Naming Convention**: Currently inconsistent (`camelCase` in some responses, e.g., `elementId`). Tracked in `icebox.md`. (Low Priority).
 - **Test Warnings**: 7 warnings present in test output (Pytest mark, Neo4j UserWarning). Need investigation. (Medium Priority).
-- **Query Cache**: `@lru_cache` in `cypher_loader.py` is currently commented out. Decision needed on re-enabling or migrating remaining queries. (Low Priority).
+- **Deprecated Query Templates**: `query_templates.cypher` is now deprecated and marked as such. Consider complete removal in future release. (Low Priority).
+- **Removed Query Loader**: The `cypher_loader.py` utility has been deleted as it's no longer necessary.

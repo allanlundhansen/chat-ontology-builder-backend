@@ -1,25 +1,15 @@
 # Active Context - Project: KantAI Backend
 
-*Last Updated: 2024-08-02*
+*Last Updated: 2024-08-05*
 
 ## Current Work Focus
 
-The primary focus remains on implementing the foundational **Phase 1** requirements outlined in `01-Kantian-Category-Structure-KG.md`. Specifically, we are building out the **API layer** using FastAPI and ensuring interactions with the Neo4j database are correct and tested. We have completed basic CRUD for Concepts and the create/list endpoints for Relationships.
+Focus is now shifting towards testing refinement and final cleanup for Phase 1 API work, as all planned CRUD functionality for Concepts and Relationships is complete, and Category modification endpoints have been intentionally omitted.
 
 ### API Layer
-- **Concepts Endpoint (`/api/v1/concepts`)**:
-  - `POST /`: Implemented and tested.
-  - `GET /`: Implemented and tested.
-  - `GET /{element_id}`: Implemented and tested.
-  - `DELETE /{element_id}`: Implemented and tested.
-  - `PATCH /{element_id}`: Implemented and tested.
-- **Relationships Endpoint (`/api/v1/relationships`)**:
-  - `POST /`: Implemented and tested.
-  - `GET /`: Implemented and tested.
-  - `GET /{element_id}`: Implemented and tested.
-  - `PATCH /{element_id}`: Implemented and tested.
-  - `DELETE /{element_id}`: **Next Up**
-- **Categories Endpoint (`/api/v1/categories`)**: Not started.
+- **Concepts Endpoint (`/api/v1/concepts`)**: Fully Implemented (POST, GET, PATCH, DELETE).
+- **Relationships Endpoint (`/api/v1/relationships`)**: Fully Implemented (POST, GET, PATCH, DELETE).
+- **Categories Endpoint (`/api/v1/categories`)**: Retrieval Implemented (GET /, GET /{name}). Modification endpoints (POST, PATCH, DELETE) intentionally skipped for Phase 1.
 
 ### Database Layer (Neo4j)
 - Core schema based on Kantian categories exists.
@@ -58,6 +48,8 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - **Implemented `GET /api/v1/concepts` & `GET /api/v1/concepts/{element_id}` Endpoints**: Added retrieval functionality with tests.
 - **Resolved Previous Test Failures**: Addressed `FixtureLookupError`, multiple `AssertionErrors`, and `RuntimeError`.
 - **Updated Documentation**: Introduced `docs/current_tasks.md`, `docs/icebox.md`, `docs/done_tasks.md` for task tracking.
+- **Deprecated Cypher Loader**: Added deprecation notice to `src/utils/cypher_loader.py` as it's no longer needed now that all queries are Python constants. **The file `cypher_loader.py` has now been deleted.**
+- **Clarified Category API Scope**: Explicitly decided to omit `POST`, `PATCH`, and `DELETE` endpoints for categories in Phase 1, as the Kantian structure is fixed. Updated `current_tasks.md` accordingly.
 
 ## Open Questions & Decisions
 
@@ -65,63 +57,24 @@ The primary focus remains on implementing the foundational **Phase 1** requireme
 - **Error Handling**: Refine error handling and response formats for consistency across endpoints.
 - **INSTANCE_OF Relationship**: How should this be managed via the API?
 - **API Naming Convention**: Task created in `icebox.md` to enforce consistent `snake_case` in JSON responses. Current endpoints return `elementId`.
+- **Category API Scope**: Confirmed that only GET endpoints are needed for Phase 1 due to the fixed nature of the Kantian categories.
 
 ## Next Steps
 
 ### Immediate
-1.  **Review Documentation**: Ensure all relevant memory bank and docs files are updated to reflect the current state.
-2.  **Commit Changes**: Commit the successful fixes, refactoring, tests, and documentation updates.
-3.  **Decide Next Steps**: Choose the next focus area:
-    *   Address test **warnings** (Pytest mark, Neo4j multi-record UserWarning).
-    *   Address **skipped tests** (mostly in `test_concepts.py`).
-    *   Manage the **query loader cache** (re-enable or leave disabled).
-    *   Continue **query refactoring** (migrate more queries from `.cypher` to Python constants).
-    *   Implement the remaining **Relationship CRUD** endpoint (`DELETE /{element_id}`).
-    *   Start implementing the **Categories endpoints** (`/api/v1/categories`).
+1. **Review Documentation**: Ensure all relevant memory bank and docs files are updated to reflect the current state.
+2. **Commit Changes**: Commit the successful query refactoring, tests, and documentation updates.
+3. **Decide Next Focus Area**:
+   * Address test **warnings** (Pytest mark, Neo4j multi-record UserWarning).
+   * Address **skipped tests** (mostly in `test_concepts.py`).
+   * Perform final code review/cleanup for Phase 1 API.
 
 ### API Layer
-- Implement `DELETE` endpoint for relationships.
-- Implement endpoints for categories.
-- **API Naming Convention**: Task created in `icebox.md` to enforce consistent `snake_case` in JSON responses. Current endpoints return `elementId`.
-- **Query Loader Cache**: Decide whether to re-enable the `@lru_cache` in `src/utils/cypher_loader.py` or keep it disabled while potentially migrating more queries.
+- No further API endpoint implementation planned for Phase 1.
 
 ### Database Layer
-- Implement Cypher queries for Relationship `DELETE` operations.
-- Implement queries for managing `INSTANCE_OF` relationships.
-- Develop queries for navigating semantic, temporal, and spatial relationships as per PRD Task 4.
-
-### Testing
-- Add integration tests for remaining Relationship CRUD (`DELETE`) and Category endpoints.
-- Address skipped tests and warnings.
-- Potentially add more unit tests for complex business logic if needed.
-
-### Documentation
-- Continue updating Memory Bank files as progress is made.
-- Generate/update OpenAPI (Swagger) documentation.
-- Document schema and queries more formally (PRD Task 5).
-- Address items in `icebox.md` when prioritized.
+- Implement Cypher queries for Relationship `
 
 ## Active Decisions and Considerations
 
-1. **Direct Neo4j Implementation**: Decided to implement the Knowledge Graph directly in Neo4j with Cypher scripts rather than using a Python abstraction layer to minimize unnecessary complexity
-2. **Cypher Query Approach**: Chose to use direct Cypher queries instead of GraphQL, focusing on leveraging Neo4j's native query capabilities
-3. **Query Templates**: Decided to define reusable query templates in `.cypher` files. These will be loaded and executed by the application layer, as APOC procedures (`apoc.custom.asProcedure`) are not available in the current AuraDB environment.
-4. **Query Management**: Currently using a hybrid approach: core Concept CRUD queries are Python constants (`src/cypher_queries/concept_queries.py`), while others may still use the file loader (`src/utils/cypher_loader.py`).
-5. **Modality Representation Strategy**: Decided to replace the Phase 1 property-based modality on Concept nodes with a judgment-based representation in Phase 2, rather than maintaining coexistence. This involves a planned migration.
-6. **Quality/Modality Value Validation**: Due to limitations with Neo4j 5.x constraint syntax and the unavailability of APOC triggers in the current AuraDB environment, the validation ensuring `quality` and `modality` properties contain only the allowed Kantian values (or NULL) will be enforced at the **application level**.
-7. **Conditional Relationship Property Validation**: Similarly, the rule requiring `spatial_unit` when `distance` is present on `SPATIALLY_RELATES_TO` relationships cannot be enforced via standard constraints and will also be handled at the **application level**.
-8. **API Path Structure (Phase 1):** Decided to use `/api/v1/concepts` and `/api/v1/relationships` as base paths for Understanding Module creation/retrieval endpoints. Concept-specific relationship queries remain under `/api/v1/concepts/{id}/...`.
-9. **LLM Provider Selection**: Still evaluating options between OpenAI, Anthropic, and open-source alternatives
-10. **Deployment Strategy**: Deciding between cloud providers and on-premises deployment
-11. **Validation Implementation Strategy**: Decided to implement validation as a centralized service (`KantianValidator`). **Confirmed working via integration tests for API endpoints.**
-
-## Current Challenges
-
-1. **Query Optimization**: Ensuring efficient performance for complex graph queries
-2. **Concept Classification**: Determining the right level of granularity for concept categorization
-3. **Relationship Constraints**: Implementing proper constraints to maintain data integrity across relationship types
-4. **Integration Strategy**: Planning the connection between the Knowledge Graph and other modules
-5. **Modality Migration Complexity**: Ensuring a smooth and accurate migration from property-based to judgment-based modality in Phase 2.
-6. **Application-Level Validation Consistency**: Ensuring rigorous and consistent validation logic is applied across all application components writing `quality` and `modality` properties to the database, **as well as conditional properties like `spatial_unit`**.
-7. **Testing Approach**: Developing comprehensive tests for graph operations and constraints
-8. **Test Warnings**: Investigating the cause of the 7 warnings reported by pytest.
+11. **Category API Scope (Phase 1)**: Decided to only implement GET endpoints (`GET /`, `GET /{name}`) for categories in Phase 1. POST, PATCH, and DELETE operations are omitted as the Kantian category structure is pre-defined and fixed, making modification via API inconsistent with the model's philosophy.

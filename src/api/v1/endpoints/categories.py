@@ -12,6 +12,11 @@ from src.models.category import (
     SubCategoryCreate,
     CategoryUpdate
 )
+# Import the query constants
+from src.cypher_queries.category_queries import (
+    LIST_CATEGORIES, GET_CATEGORY_BY_NAME, CREATE_CATEGORY,
+    CHECK_PARENT_CATEGORY, CREATE_SUBCATEGORY
+)
 
 router = APIRouter()
 
@@ -26,27 +31,9 @@ async def list_categories(
     tx: Annotated[AsyncTransaction, Depends(get_db)]
 ) -> CategoryListResponse:
     """Retrieve all categories and their subcategories from the database."""
-    query = (
-        "MATCH (cat:Category) "
-        "OPTIONAL MATCH (cat)-[:HAS_SUBCATEGORY]->(sub:Subcategory) "
-        "WITH cat, elementId(cat) as cat_elementId, cat.name as cat_name, cat.description as cat_description, "
-        "     CASE WHEN sub IS NOT NULL THEN { "
-        "         elementId: elementId(sub), "
-        "         name: sub.name, "
-        "         description: sub.description "
-        "     } ELSE NULL END as sub_data "
-        "ORDER BY cat.name, sub.name " # Order subcategories before collecting
-        "RETURN "
-        "    cat_elementId, "
-        "    cat_name, "
-        "    cat_description, "
-        "    collect(sub_data) as subcategories_data " # Collect the maps
-        "ORDER BY cat_name" # Final ordering by category name
-    )
-
     categories_list: List[CategoryResponse] = []
     try:
-        result = await tx.run(query)
+        result = await tx.run(LIST_CATEGORIES)
         records = await result.data() # Fetch all records
 
         for record in records:
@@ -76,8 +63,6 @@ async def list_categories(
         traceback.print_exc()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred while listing categories.")
 
-# TODO: Implement GET /{name} endpoint
-
 @router.get(
     "/{name}",
     response_model=CategoryResponse,
@@ -93,31 +78,8 @@ async def get_category_by_name(
     tx: Annotated[AsyncTransaction, Depends(get_db)]
 ) -> CategoryResponse:
     """Retrieve category details by name, resolving subcategory names to their parent category."""
-    # Query finds the node by name (Cat or Subcat), determines the relevant Category, then fetches its details.
-    query = (
-        "MATCH (n) WHERE n.name = $name AND (n:Category OR n:Subcategory) "
-        "OPTIONAL MATCH (parent_cat:Category)-[:HAS_SUBCATEGORY]->(n) WHERE n:Subcategory "
-        "WITH COALESCE(parent_cat, CASE WHEN n:Category THEN n ELSE NULL END) as finalCat "
-        "WHERE finalCat IS NOT NULL "
-        "MATCH (cat:Category) WHERE elementId(cat) = elementId(finalCat) "
-        "OPTIONAL MATCH (cat)-[:HAS_SUBCATEGORY]->(sub:Subcategory) "
-        "WITH cat, elementId(cat) as cat_elementId, cat.name as cat_name, cat.description as cat_description, "
-        "     CASE WHEN sub IS NOT NULL THEN { "
-        "         elementId: elementId(sub), "
-        "         name: sub.name, "
-        "         description: sub.description "
-        "     } ELSE NULL END as sub_data "
-        "ORDER BY sub.name "
-        "RETURN "
-        "    cat_elementId, "
-        "    cat_name, "
-        "    cat_description, "
-        "    collect(sub_data) as subcategories_data "
-        "LIMIT 1" # Should only return one category
-    )
-
     try:
-        result = await tx.run(query, {"name": name})
+        result = await tx.run(GET_CATEGORY_BY_NAME, {"name": name})
         record = await result.single() # Fetch the single record
 
         if record is None:
@@ -161,13 +123,9 @@ async def create_category(
     tx: Annotated[AsyncTransaction, Depends(get_db)],
 ) -> CategoryResponse:
     """Create a new top-level category."""
-    query = (
-        "CREATE (c:Category {name: $name, description: $description}) "
-        "RETURN elementId(c) as elementId, c.name as name, c.description as description"
-    )
     try:
         result = await tx.run(
-            query,
+            CREATE_CATEGORY,
             {"name": category_data.name, "description": category_data.description},
         )
         record = await result.single()
@@ -222,17 +180,9 @@ async def create_subcategory(
     tx: Annotated[AsyncTransaction, Depends(get_db)],
 ) -> SubCategoryResponse:
     """Create a new subcategory and link it to a parent category."""
-    query = (
-        "MATCH (p:Category {name: $parent_name}) "
-        "CREATE (s:Subcategory {name: $sub_name, description: $sub_description}) "
-        "MERGE (p)-[:HAS_SUBCATEGORY]->(s) "
-        "RETURN elementId(s) as elementId, s.name as name, s.description as description"
-    )
-
     try:
         # Check if parent exists first *within the same transaction*
-        parent_check_query = "MATCH (p:Category {name: $parent_name}) RETURN p LIMIT 1"
-        parent_result = await tx.run(parent_check_query, {"parent_name": parent_category_name})
+        parent_result = await tx.run(CHECK_PARENT_CATEGORY, {"parent_name": parent_category_name})
         if await parent_result.single() is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -241,7 +191,7 @@ async def create_subcategory(
 
         # If parent exists, proceed to create subcategory
         result = await tx.run(
-            query,
+            CREATE_SUBCATEGORY,
             {
                 "parent_name": parent_category_name,
                 "sub_name": subcategory_data.name,
@@ -281,4 +231,4 @@ async def create_subcategory(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while creating the subcategory.",
-        ) 
+        )

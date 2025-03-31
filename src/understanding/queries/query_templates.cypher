@@ -1,3 +1,8 @@
+// DEPRECATED: This file is no longer used in the application.
+// All queries have been migrated to Python constants in src/cypher_queries/*.py
+// Please use those constants directly instead of using this file.
+// This file is kept for historical reference only and will be removed in a future release.
+
 // Query Templates - Neo4j Implementation
 // This file contains reusable Cypher query templates for working with the Kantian knowledge graph
 

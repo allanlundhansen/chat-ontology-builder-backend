@@ -9,11 +9,13 @@ import datetime # Ensure datetime is imported
 from src.db.neo4j_driver import get_db
 from src.models.concept import Concept, ConceptCreate, ConceptResponse, ConceptUpdate
 from src.models.path import PathResponse
-# from src.utils.cypher_loader import load_query # <-- No longer needed for concept queries
+# from src.utils.cypher_loader import load_query # <-- Removed
 from src.models.relationship import RelationshipInfo, TemporalRelationshipInfo, SpatialRelationshipInfo
 from src.validation.kantian_validator import KantianValidator, KantianValidationError
-# Import the new query constants
+# Import the query constants
 from src.cypher_queries import concept_queries
+# Import the specialized query constants
+from src.cypher_queries import specialized_queries
 
 router = APIRouter()
 
@@ -467,14 +469,9 @@ async def get_causal_chain(
 ):
     parameters = {"conceptId": concept_id, "maxDepth": max_depth, "resultLimit": result_limit}
     endpoint_name = f"Causal Chain for '{concept_id}'"
-    query_key = 'getCausalChain'
-    # --- Still uses the old loader --- 
-    query = QUERIES.get(query_key) 
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
-    # --- End old loader usage ---
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_CAUSAL_CHAIN
 
     try:
         result = await tx.run(query, parameters)
@@ -516,14 +513,11 @@ async def get_all_relationships_for_concept(
     limit: int = Query(50, ge=1, le=100),
     tx: AsyncTransaction = Depends(get_db)
 ):
-    parameters = {"conceptId": concept_id, "limit": limit}
+    parameters = {"conceptId": concept_id, "limit": limit, "skip": 0}
     endpoint_name = f"All Relationships for '{concept_id}'"
-    query_key = 'getAllRelationshipsForConcept'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_ALL_RELATIONSHIPS_FOR_CONCEPT
 
     try:
         result = await tx.run(query, parameters)
@@ -589,14 +583,11 @@ async def get_concept_hierarchy(
     limit: int = Query(50, ge=1, le=100),
     tx: AsyncTransaction = Depends(get_db)
 ):
-    parameters = {"conceptId": concept_id, "limit": limit}
+    parameters = {"conceptId": concept_id, "maxDepth": 3, "resultLimit": limit}
     endpoint_name = f"Hierarchy for '{concept_id}'"
-    query_key = 'getConceptHierarchy'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_CONCEPT_HIERARCHY
 
     try:
         result = await tx.run(query, parameters)
@@ -639,14 +630,11 @@ async def get_concept_membership(
     limit: int = Query(50, ge=1, le=100),
     tx: AsyncTransaction = Depends(get_db)
 ):
-    parameters = {"conceptId": concept_id, "limit": limit}
+    parameters = {"conceptId": concept_id, "maxDepth": 3, "resultLimit": limit}
     endpoint_name = f"Membership for '{concept_id}'"
-    query_key = 'getConceptMembership'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_CONCEPT_MEMBERSHIP
 
     try:
         result = await tx.run(query, parameters)
@@ -691,12 +679,9 @@ async def get_interacting_concepts(
 ):
     parameters = {"conceptId": concept_id, "limit": limit}
     endpoint_name = f"Interacting Concepts for '{concept_id}'"
-    query_key = 'getInteractingConcepts'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_INTERACTING_CONCEPTS
 
     try:
         result = await tx.run(query, parameters)
@@ -741,12 +726,9 @@ async def get_temporal_relationships(
 ):
     parameters = {"conceptId": concept_id, "limit": limit}
     endpoint_name = f"Temporal Relationships for '{concept_id}'"
-    query_key = 'getTemporalRelationships'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_TEMPORAL_RELATIONSHIPS
 
     try:
         result = await tx.run(query, parameters)
@@ -801,12 +783,9 @@ async def get_spatial_relationships(
 ):
     parameters = {"conceptId": concept_id, "limit": limit}
     endpoint_name = f"Spatial Relationships for '{concept_id}'"
-    query_key = 'getSpatialRelationships'
-    query = QUERIES.get(query_key)
-
-    if query is None:
-        print(f"ERROR ({endpoint_name}): Query template for '{query_key}' not loaded.")
-        raise HTTPException(status_code=500, detail=f"Internal server error: Query '{query_key}' unavailable.")
+    
+    # Use the constant from specialized_queries module
+    query = specialized_queries.GET_SPATIAL_RELATIONSHIPS
 
     try:
         result = await tx.run(query, parameters)
