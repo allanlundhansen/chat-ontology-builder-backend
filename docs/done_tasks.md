@@ -94,4 +94,65 @@ This file archives the content of `docs/current_tasks.md` after a feature/task s
 - Consistency between Cypher alias, record access key, dict key, and Pydantic field name (`elementId`) is crucial. Issue tracked in `icebox.md` for potential future change to snake_case.
 
 ---
+
+## Completed: Testing & Cleanup (Phase 1 API Endpoints)
+
+*(Archived on: 2024-08-07)*
+
+### Focus: Testing & Cleanup
+
+**Goal:** Address outstanding testing and consistency issues, and perform final cleanup for Phase 1 API work.
+
+### Tasks:
+
+-   [X] **Relationships (`/api/v1/relationships`)**:
+    -   [X] **GET /{element_id}:**
+        -   [X] Define Pydantic response model (reuse `RelationshipResponse`?).
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query to fetch a single relationship by `elementId`.
+        -   [X] Handle 404 Not Found.
+        -   [X] Add integration test.
+    -   [X] **PATCH /{element_id}:**
+        -   [X] Define `RelationshipUpdate` Pydantic model (optional fields).
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query for partial update (`SET r += $update_data`).
+        -   [X] Handle 404 Not Found.
+        -   [X] Add integration test.
+    -   [X] **DELETE /{element_id}:**
+        -   [X] Implement API endpoint function.
+        -   [X] Write Cypher query to delete a relationship (`MATCH ()-[r]-() WHERE elementId(r) = $id DETACH DELETE r`).
+        -   [X] Handle 404 Not Found.
+        -   [X] Return 204 No Content on success.
+        -   [X] Add integration test.
+-   [X] **Query Management Refactoring:**
+    -   [X] Migrate all concept queries to Python constants in a dedicated module.
+    -   [X] Migrate all relationship queries to Python constants in a dedicated module.
+    -   [X] Migrate all category queries to Python constants in a dedicated module.
+    -   [X] Migrate all specialized queries to Python constants in a dedicated module.
+    -   [X] Add deprecation notice to `query_templates.cypher`.
+    -   [X] Delete deprecated `cypher_loader.py`.
+    -   [X] Update code to use the new constants directly.
+    -   [X] Ensure tests pass with the refactored code.
+    -   [X] Document migration status in `memory-bank/query_migration_status.md`.
+-   [ ] **Categories (`/api/v1/categories**)**:
+    -   [X] Define Pydantic models (e.g., `CategoryResponse`, `SubCategoryResponse`, `CategoryListResponse`).
+    -   [X] Implement `GET /` endpoint (list all categories and subcategories).
+    -   [X] Implement `GET /{name}` endpoint (get specific category/subcategory details).
+    -   [-] Implement `POST /` endpoint (create a top-level category) - **Skipped**: See Note below.
+    -   [-] Implement `POST /{parent_name}/subcategories` endpoint (create a subcategory) - **Skipped**: See Note below.
+    -   [-] Implement `PATCH /{name}` endpoint (update category/subcategory) - **Skipped**: See Note below.
+    -   [-] Implement `DELETE /{name}` endpoint (delete category/subcategory, handle children) - **Skipped**: See Note below.
+    -   [X] Add integration tests for GET endpoints.
+    -   [-] Add integration tests for POST, PATCH, DELETE endpoints - **Skipped**: See Note below.
+-   [ ] **Testing Refinement:**
+    -   [X] Investigate and fix skipped tests in `test_concepts.py` and `test_concept_endpoints.py`.
+    -   [X] Investigate and fix 7 test warnings (Pytest mark, Neo4j UserWarning).
+-   [X] **Consistency & Cleanup:**
+    -   [X] Address API Naming Convention (`elementId` vs `element_id`) - see `icebox.md`.
+
+### Notes/Considerations:
+- Remember `DETACH DELETE` to handle relationships.
+- Ensure async/await is used correctly in tests and endpoint.
+
+---
 *(Add future completed task lists below this line)* 

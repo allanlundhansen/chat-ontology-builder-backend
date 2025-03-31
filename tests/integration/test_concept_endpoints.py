@@ -25,25 +25,44 @@ async def create_test_concept(neo4j_async_session: AsyncSession, name: str, desc
 
 # --- Tests for GET /api/v1/concepts/ ---
 
-@pytest.mark.skip(reason="Test expects empty DB, conflicts with session-scoped data fixture")
+@pytest.mark.usefixtures("clear_db_before_test")
 async def test_list_concepts_empty(async_client: AsyncClient):
-    """Test getting concepts when the database is empty (Skipped)."""
-    # Assuming DB is cleared by session fixture setup
+    """Test getting concepts when the database is empty."""
+    # DB should be cleared by the clear_db_before_test fixture
     response = await async_client.get(CONCEPTS_ENDPOINT)
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == []
 
 @pytest.mark.asyncio
-async def test_list_concepts_with_data(async_client: AsyncClient, load_sample_data):
-    """Test listing concepts retrieves data loaded by fixtures."""
+@pytest.mark.usefixtures("clear_db_before_test")
+async def test_list_concepts_with_data(async_client: AsyncClient):
+    """Test listing concepts retrieves data created within the test."""
+    # Arrange: Create a concept via API
+    test_name = f"List Concept Test {uuid.uuid4()}"
+    create_payload = {"name": test_name, "description": "Testing list endpoint"}
+    create_response = await async_client.post(CONCEPTS_ENDPOINT, json=create_payload)
+    assert create_response.status_code == status.HTTP_201_CREATED
+    created_concept_data = create_response.json()
+    created_element_id = created_concept_data.get("elementId")
+
+    # Act: List concepts
     response = await async_client.get(CONCEPTS_ENDPOINT)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
+
+    # Assert: Check that the created concept is in the list
     assert isinstance(data, list)
-    assert len(data) > 0 # Check that we get some concepts back
-    # Add more specific checks based on sample data if needed
-    assert "elementId" in data[0]
-    assert "name" in data[0]
+    assert len(data) >= 1 # Check that we get at least one concept back
+
+    # Find the specific concept we created in the list
+    found = False
+    for concept in data:
+        if concept.get("elementId") == created_element_id:
+            assert concept["name"] == test_name
+            assert concept["description"] == "Testing list endpoint"
+            found = True
+            break
+    assert found, f"Concept with elementId {created_element_id} not found in list response: {data}"
 
 
 # --- Tests for GET /api/v1/concepts/{element_id} ---
