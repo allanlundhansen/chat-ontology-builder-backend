@@ -131,6 +131,9 @@ While our computational implementation necessarily simplifies this model, we mai
 - **Query Management**: All Cypher queries are defined as Python string constants within modules in the `src/cypher_queries/` directory (e.g., `concept_queries.py`, `relationship_queries.py`, `specialized_queries.py`). The previous file-based loader (`cypher_loader.py`) has been removed.
 - **Direct Cypher Interface**: Advanced endpoint allowing direct Cypher execution for complex queries and power users
 - **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
+- **Validation Layer**: New validation service enforces Quality/Modality constraints and relationship rules before database writes
+- **Deprecation Warnings**: API responses for Concept endpoints now include warnings about Phase 2 modality migration
+- **Logging**: Standardized logging using Python's `logging` module is implemented, particularly in core API endpoints like `concepts.py`.
 
 ## Technical Decisions
 
@@ -158,12 +161,15 @@ While our computational implementation necessarily simplifies this model, we mai
 - **API Evolution**: API design must account for the planned Phase 2 transition from property-based to judgment-based modality, including deprecation warnings and new endpoints.
 - **Validation Layer**: New validation service enforces Quality/Modality constraints and relationship rules before database writes
 - **Deprecation Warnings**: API responses for Concept endpoints now include warnings about Phase 2 modality migration
+- **Logging**: Standardized logging using Python's `logging` module is implemented, particularly in core API endpoints like `concepts.py`.
 
 ### Containerization and Deployment
 
 - **Docker**: For consistent development and deployment environments
 - **Kubernetes**: For orchestration in production environments
 - **Microservices Architecture**: Each cognitive module implemented as a separate service
+- **Code Documentation**: Inline documentation and code quality standards
+- **Memory Bank**: Project state and context maintained in `/memory-bank` directory.
 
 ## Development Patterns
 
@@ -195,4 +201,5 @@ While our computational implementation necessarily simplifies this model, we mai
     - **Explicit Projections**: Use explicit map projections (`node {{.*, elementId: elementId(node)}}`, `rel {{..., properties: properties(rel)}}`) to control exactly which fields are returned, including nested properties.
     - **Parameterization**: Always use parameterized queries (`$paramName`) to prevent injection vulnerabilities.
     - **String Formatting**: If string formatting is necessary (e.g., for dynamic relationship types or query limits), use Python's f-strings or `.format()` carefully, ensuring literal curly braces within the Cypher itself are escaped (`{{`, `}}`).
-- **Datetime Handling**: Neo4j returns datetime objects (`neo4j.time.DateTime`). These need conversion (e.g., using `convert_neo4j_datetimes` utility) before validation with Pydantic models that expect standard Python `datetime` or string representations. 
+- **Datetime Handling**: Neo4j returns datetime objects (`neo4j.time.DateTime`). These need conversion (e.g., using `convert_neo4j_datetimes` utility) before validation with Pydantic models that expect standard Python `datetime` or string representations.
+- **Endpoint `/concepts/{id}/relationships`**: This endpoint (`get_all_relationships_for_concept`) is implemented to return a list of all relationships connected to a concept, consistently formatted according to the `RelationshipResponse` model. It no longer attempts to map specific relationship types (like `PRECEDES` or `SPATIALLY_RELATES_TO`) to more specialized Pydantic models within its own logic, aligning its internal behavior with its declared API contract (`response_model=List[RelationshipResponse]`). Specialized relationship details are handled by dedicated endpoints (e.g., `/concepts/{id}/temporal`). 

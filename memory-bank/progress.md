@@ -21,6 +21,9 @@
   - `GET /{element_id}`: Implemented and tested.
   - `DELETE /{element_id}`: Implemented and tested.
   - `PATCH /{element_id}`: Implemented and tested (partial updates).
+  - `GET /{name}` endpoint implemented and tested.
+  - Logging standardized using Python's `logging` module in `concepts.py`.
+  - `get_all_relationships_for_concept` function simplified to consistently use `RelationshipResponse` internally, aligning with API contract.
 - **Relationships (`/api/v1/relationships`)**:
   - `POST /`: Implemented and tested (basic creation, spatial validation, dynamic types).
   - `GET /`: Implemented and tested (listing, filtering, pagination).
@@ -49,7 +52,7 @@
 - Resolved issues with GET relationship by ID endpoint (parameter order, imports, dependencies, query aliases, test assertions).
 - Resolved issues with relationship updates (`PATCH`) regarding datetime serialization (`neo4j.time.DateTime`) and property consistency (`created_at`/`updated_at`).
 - Concept CRUD queries refactored to Python constants (`src/cypher_queries/concept_queries.py`) removing reliance on `cypher_loader` for these core operations.
-- Full test suite passing (94 passed, 9 skipped, 0 warnings) as of 2024-08-06.
+- Full test suite passing (98 passed, 1 skipped) as of 2024-08-07.
 - Removed deprecated `src/utils/cypher_loader.py` file.
 - Resolved `UserWarning: Expected a result with a single record...` in `get_relationship_by_id` and `update_relationship` by fixing Cypher direction (`-[r]-` to `-[r]->`) and implementing explicit result count checks (`result.data()`).
 - `test_get_concept_properties` refactored to create its own data and is now passing.

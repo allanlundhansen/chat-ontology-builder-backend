@@ -50,6 +50,8 @@ Focus is shifting towards addressing remaining skipped tests, particularly withi
 - **Implemented `PATCH /api/v1/concepts/{element_id}` Endpoint**: Added partial updates.
 - **Implemented `DELETE /api/v1/concepts/{element_id}` Endpoint**: Added deletion.
 - **Implemented `GET /api/v1/concepts` & `GET /api/v1/concepts/{element_id}` Endpoints**: Added retrieval.
+- **Standardized Logging in `concepts.py`**: Replaced `print` statements with standard `logger` calls for consistency.
+- **Simplified `get_all_relationships_for_concept`**: Refactored function in `concepts.py` to remove dynamic model switching and consistently use `RelationshipResponse`, aligning implementation with the API contract. Verified with tests.
 
 ## Open Questions & Decisions
 

@@ -1,6 +1,6 @@
 # Current Tasks: Complete Phase 1 API Endpoints
 
-*Last Updated: 2024-08-05*
+*Last Updated: 2024-08-07*
 
 ## Focus: Testing & Cleanup
 
@@ -50,9 +50,9 @@
 -   [ ] **Testing Refinement:**
     -   [ ] Investigate and fix skipped tests in `test_concepts.py` and `test_concept_endpoints.py`.
     -   [ ] Investigate and fix 7 test warnings (Pytest mark, Neo4j UserWarning).
--   [ ] **Consistency & Cleanup:**
+-   [X] **Consistency & Cleanup:**
     -   [X] Address API Naming Convention (`elementId` vs `element_id`) - see `icebox.md`.
-    -   [ ] Review and remove any remaining unnecessary debug code or comments.
+    -   [X] Review and remove any remaining unnecessary debug code or comments.
 -   [ ] **Documentation:**
     -   [ ] Update this file (`current_tasks.md`) as tasks are completed.
 
