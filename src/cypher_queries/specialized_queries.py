@@ -29,7 +29,7 @@ RETURN
     elementId(other) AS otherId, 
     other.name AS otherName, 
     r.confidence_score AS confidence,
-    r AS rel,
+    { type: type(r), elementId: elementId(r), properties: properties(r) } AS relMap,
     c AS startNode,
     other AS endNode
 UNION
@@ -40,7 +40,7 @@ RETURN
     elementId(other) AS otherId, 
     other.name AS otherName, 
     r.confidence_score AS confidence,
-    r AS rel,
+    { type: type(r), elementId: elementId(r), properties: properties(r) } AS relMap,
     other AS startNode,
     c AS endNode
 ORDER BY relationship_type, otherName
@@ -48,19 +48,19 @@ SKIP $skip
 LIMIT $limit
 """
 
-# Get concept hierarchy (following CONTAINS relationships)
+# Get concept hierarchy (following IS_PART_OF relationships - corrected)
 GET_CONCEPT_HIERARCHY = """
-MATCH path = (c:Concept)-[:CONTAINS*1..$maxDepth]->(part:Concept)
+MATCH (c:Concept)-[:IS_PART_OF*1..{max_depth}]->(ancestor:Concept)
 WHERE elementId(c) = $conceptId
-RETURN path AS p
+RETURN DISTINCT ancestor {{ .*, elementId: elementId(ancestor) }} AS relatedConcept
 LIMIT $resultLimit
 """
 
-# Get concept membership (following IS_PART_OF relationships)
+# Get concept membership (following IS_PART_OF relationships - corrected return)
 GET_CONCEPT_MEMBERSHIP = """
-MATCH path = (c:Concept)-[:IS_PART_OF*1..$maxDepth]->(whole:Concept)
+MATCH (c:Concept)-[:IS_PART_OF*1..{max_depth}]->(whole:Concept)
 WHERE elementId(c) = $conceptId
-RETURN path AS p
+RETURN DISTINCT whole {{ .*, elementId: elementId(whole) }} AS group
 LIMIT $resultLimit
 """
 
@@ -100,7 +100,7 @@ MATCH (c:Concept)-[r:PRECEDES]->(after:Concept)
 WHERE elementId(c) = $conceptId
 RETURN 
     after { .*, elementId: elementId(after) } AS relatedConcept,
-    r AS rel,
+    { type: type(r), elementId: elementId(r), properties: properties(r) } AS relMap,
     c AS startNode,
     after AS endNode,
     r.temporal_distance AS temporalDistance, 
@@ -110,7 +110,7 @@ MATCH (before:Concept)-[r:PRECEDES]->(c:Concept)
 WHERE elementId(c) = $conceptId
 RETURN 
     before { .*, elementId: elementId(before) } AS relatedConcept,
-    r AS rel,
+    { type: type(r), elementId: elementId(r), properties: properties(r) } AS relMap,
     before AS startNode,
     c AS endNode,
     r.temporal_distance AS temporalDistance, 
@@ -123,9 +123,10 @@ LIMIT $limit
 GET_SPATIAL_RELATIONSHIPS = """
 MATCH (c:Concept)-[r:SPATIALLY_RELATES_TO]-(other:Concept)
 WHERE elementId(c) = $conceptId
+WITH c, r, other
 RETURN 
     other { .*, elementId: elementId(other) } AS relatedConcept,
-    r AS rel,
+    { type: type(r), elementId: elementId(r), properties: properties(r) } AS relMap,
     CASE WHEN startNode(r) = c THEN c ELSE other END AS startNode,
     CASE WHEN endNode(r) = c THEN other ELSE c END AS endNode,
     r.relation_type AS relationType, 

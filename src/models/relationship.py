@@ -84,6 +84,7 @@ class RelationshipResponse(RelationshipInfo):
 
 # Specific info models used by endpoints in concepts.py (ensure these match query returns)
 class TemporalRelationshipInfo(BaseModel):
+    elementId: str
     related_concept_id: str
     related_concept_name: str
     relationship_type: str # Should be 'PRECEDES'
@@ -91,6 +92,7 @@ class TemporalRelationshipInfo(BaseModel):
     properties: RelationshipProperties
 
 class SpatialRelationshipInfo(BaseModel):
+    elementId: str
     related_concept_id: str
     related_concept_name: str
     relationship_type: str # Should be 'SPATIALLY_RELATES_TO'

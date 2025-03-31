@@ -9,8 +9,9 @@ from src.db.neo4j_driver import get_db
 from src.validation.kantian_validator import KantianValidator, KantianValidationError
 # --- Import models from the correct location ---
 from src.models.relationship import RelationshipCreate, RelationshipResponse, RelationshipProperties, RelationshipListResponse, RelationshipUpdate, RelationshipPropertiesUpdate
-# --- Import the datetime conversion helper --- #
-from src.api.v1.endpoints.concepts import convert_neo4j_datetimes
+# --- Import the datetime conversion helper --- # Corrected Import
+# from src.api.v1.endpoints.concepts import convert_neo4j_datetimes # Removed circular import
+from src.utils.converters import convert_neo4j_datetimes # Import from utils
 # --- Import Cypher query constants --- #
 from src.cypher_queries.relationship_queries import (
     LIST_RELATIONSHIPS, COUNT_RELATIONSHIPS, CREATE_RELATIONSHIP, 
