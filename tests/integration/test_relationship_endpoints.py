@@ -487,7 +487,6 @@ async def test_delete_relationship_not_found(async_client: AsyncClient):
     # Assert: Should return 404 Not Found
     assert delete_response.status_code == status.HTTP_404_NOT_FOUND
 
-@pytest.mark.trio
 @pytest.mark.usefixtures("clear_db_before_test")
 async def test_delete_relationship_not_found_trio(async_client: AsyncClient):
     """Test attempting to delete a relationship that does not exist."""
@@ -499,4 +498,4 @@ async def test_delete_relationship_not_found_trio(async_client: AsyncClient):
     delete_response = await async_client.delete(f"{RELATIONSHIPS_ENDPOINT}{non_existent_id}")
 
     # Assert: Should return 404 Not Found
-    assert delete_response.status_code == status.HTTP_404_NOT_FOUND 
+    assert delete_response.status_code == status.HTTP_404_NOT_FOUND

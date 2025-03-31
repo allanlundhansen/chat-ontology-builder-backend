@@ -85,7 +85,6 @@ This document provides a high-level overview of the project's directory and file
 │   │   │   └── validation_queries.cypher
 │   │   └── README.md
 │   ├── utils/
-│   │   └── cypher_loader.py
 │   ├── validation/
 │   │   └── kantian_validator.py
 │   └── main.py                  # Main FastAPI application entry point

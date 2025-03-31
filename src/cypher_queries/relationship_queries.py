@@ -50,7 +50,7 @@ RETURN count(n) > 0 AS exists
 
 # Get Relationship by Element ID
 GET_RELATIONSHIP_BY_ID = """
-MATCH (source)-[r]-(target)
+MATCH (source)-[r]->(target)
 WHERE elementId(r) = $element_id
 RETURN 
     elementId(r) AS elementId,
@@ -64,7 +64,7 @@ RETURN
 
 # Update Relationship (PATCH)
 UPDATE_RELATIONSHIP = """
-MATCH (source)-[r]-(target)
+MATCH (source)-[r]->(target)
 WHERE elementId(r) = $element_id
 WITH r, source, target, type(r) as current_type
 {set_statement}

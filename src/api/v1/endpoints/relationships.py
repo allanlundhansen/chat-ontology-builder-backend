@@ -206,22 +206,34 @@ async def get_relationship_by_id(
 
     try:
         result: AsyncResult = await tx.run(GET_RELATIONSHIP_BY_ID, params)
-        record: Optional[Record] = await result.single()
-        summary = await result.consume()
-        print(f"DEBUG ({endpoint_name}): Query executed. Summary: {summary.counters}")
+        # Fetch all records instead of expecting a single one
+        records: List[Record] = await result.data() 
+        summary = await result.consume() # Consume after fetching data
+        print(f"DEBUG ({endpoint_name}): Query executed. Fetched {len(records)} record(s). Summary: {summary.counters}")
 
-        if record is None:
+        if len(records) == 0:
+            # No relationship found
             detail = f"Relationship with element ID '{element_id}' not found."
             print(f"INFO ({endpoint_name}): {detail}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=detail
             )
-
-        # Validate the returned data
-        rel_data = record.data()
-        print(f"DEBUG ({endpoint_name}): Relationship found: {rel_data}")
-        return RelationshipResponse.model_validate(rel_data)
+        elif len(records) == 1:
+            # Exactly one relationship found, proceed as before
+            record = records[0]
+            # Validate the returned data
+            rel_data = record # record.data() is not needed as .data() was called on result
+            print(f"DEBUG ({endpoint_name}): Relationship found: {rel_data}")
+            return RelationshipResponse.model_validate(rel_data)
+        else:
+            # More than one relationship found - this should not happen with elementId!
+            error_detail = f"Unexpectedly found {len(records)} relationships with element ID '{element_id}'."
+            print(f"ERROR ({endpoint_name}): {error_detail}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: Inconsistent relationship data found."
+            )
 
     except HTTPException as http_exc:
         raise http_exc
@@ -285,12 +297,15 @@ async def update_relationship(
     try:
         # Run the query
         result: AsyncResult = await tx.run(query, params)
-        record: Optional[Record] = await result.single()
-        summary = await result.consume()
-        print(f"DEBUG ({endpoint_name}): Update query executed. Summary: {summary.counters}")
+        # Fetch all records instead of expecting a single one
+        records: List[Record] = await result.data()
+        summary = await result.consume() # Consume after fetching data
+        print(f"DEBUG ({endpoint_name}): Update query executed. Fetched {len(records)} record(s). Summary: {summary.counters}")
 
-        if record and summary.counters.properties_set > 0:
-            updated_rel_data = record.data()
+        if len(records) == 1 and summary.counters.properties_set > 0:
+            # Exactly one record returned and properties were set
+            record = records[0]
+            updated_rel_data = record # record.data() not needed as result.data() was used
             # Convert datetimes before validation
             if 'properties' in updated_rel_data and updated_rel_data['properties']:
                 converted_properties = convert_neo4j_datetimes(updated_rel_data['properties'])
@@ -304,23 +319,36 @@ async def update_relationship(
                 print(f"DEBUG ({endpoint_name}): Kantian validation passed for updated properties.")
             except KantianValidationError as val_err:
                 print(f"ERROR ({endpoint_name}): Kantian validation failed AFTER update: {val_err}")
-                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(val_err))
+                # Although the DB update succeeded, validation failed. We might consider reverting,
+                # but for now, return an error indicating the validation issue.
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Update successful but failed validation: {val_err}")
 
             print(f"DEBUG ({endpoint_name}): Relationship updated successfully: {updated_rel_data}")
             return RelationshipResponse.model_validate(updated_rel_data)
 
-        elif record is None and summary.counters.properties_set == 0:
-            # Relationship not found
+        elif len(records) == 0 and summary.counters.properties_set == 0:
+            # No relationship found (query returned 0 records, no properties set)
             detail = f"Relationship with element ID '{element_id}' not found for update."
             print(f"INFO ({endpoint_name}): {detail}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+            
+        elif len(records) > 1:
+            # More than one relationship found - this should not happen with elementId!
+            error_detail = f"Unexpectedly found {len(records)} relationships matching element ID '{element_id}' during update."
+            print(f"ERROR ({endpoint_name}): {error_detail}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error: Inconsistent relationship data found during update."
+            )
+            
         else:
-            # Relationship found but no properties set? Unexpected.
-            error_detail = f"Update failed unexpectedly. Record: {record.data() if record else 'None'}, Summary: {summary}"
+            # Other unexpected cases (e.g., record found but no properties set, or vice versa)
+            error_detail = f"Update failed unexpectedly. Records found: {len(records)}, Properties set: {summary.counters.properties_set}, Summary: {summary}"
             print(f"ERROR ({endpoint_name}): {error_detail}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error during relationship update.")
 
     except KantianValidationError as exc:
+        # This catches validation errors *before* the DB update (e.g., in payload)
         print(f"ERROR ({endpoint_name}): Kantian validation failed - {exc}")
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     except HTTPException as http_exc:

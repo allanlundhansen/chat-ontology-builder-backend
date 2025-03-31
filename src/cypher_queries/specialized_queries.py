@@ -5,9 +5,18 @@ via the cypher_loader utility.
 
 # Get causal chain (path from a concept following CAUSES relationships)
 GET_CAUSAL_CHAIN = """
-MATCH path = (start:Concept)-[:CAUSES*1..$maxDepth]->(effect:Concept)
+MATCH path = (start:Concept)-[rels:CAUSES*1..{max_depth}]->(effect:Concept)
 WHERE elementId(start) = $conceptId
-RETURN path AS p
+WITH nodes(path) AS path_nodes, relationships(path) AS path_rels
+RETURN
+    [node IN path_nodes | node {{.*, elementId: elementId(node)}}] AS nodes,
+    [rel IN path_rels | rel {{
+        elementId: elementId(rel), 
+        start_node_id: elementId(startNode(rel)),
+        end_node_id: elementId(endNode(rel)),
+        type: type(rel),
+        properties: properties(rel)
+    }}] AS relationships
 LIMIT $resultLimit
 """
 

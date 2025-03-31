@@ -16,6 +16,8 @@ from src.validation.kantian_validator import KantianValidator, KantianValidation
 from src.cypher_queries import concept_queries
 # Import the specialized query constants
 from src.cypher_queries import specialized_queries
+# Import the converter utility
+from src.utils.converters import convert_neo4j_datetimes
 
 router = APIRouter()
 
@@ -25,18 +27,9 @@ router = APIRouter()
 # for key in QUERY_KEYS: # Removed
 #    ... (loading logic removed) ...
 
-# --- Helper Function (remains the same) ---
-def convert_neo4j_datetimes(data: dict) -> dict:
-    """Converts neo4j.time.DateTime objects in a dict to Python datetime.datetime."""
-    if data is None:
-        return None
-    # Ensure we're working with a mutable copy if it's a Record or Mapping
-    native_data = dict(data)
-    if 'created_at' in native_data and hasattr(native_data['created_at'], 'to_native'):
-        native_data['created_at'] = native_data['created_at'].to_native()
-    if 'updated_at' in native_data and hasattr(native_data['updated_at'], 'to_native'):
-        native_data['updated_at'] = native_data['updated_at'].to_native()
-    return native_data
+# --- REMOVED Helper Function (moved to src/utils/converters.py) ---
+# def convert_neo4j_datetimes(data: dict) -> dict:
+#    ...
 
 # --- NEW Endpoint: GET / (Handles Listing & Filtering) ---
 @router.get(
@@ -457,7 +450,7 @@ async def get_concept_properties(
 
 @router.get(
     "/{concept_id}/causal-chain",
-    response_model=List[PathResponse],
+    response_model=List[PathResponse], # The response is a list of paths
     summary="Get Causal Chain from a Concept",
     description="Retrieves causal chains (paths) starting from a given concept, up to a specified depth.",
     tags=["Relationships"]
@@ -467,31 +460,49 @@ async def get_causal_chain(
     max_depth: int = Query(3, ge=1, le=5), result_limit: int = Query(10, ge=1, le=50),
     tx: AsyncTransaction = Depends(get_db)
 ):
-    parameters = {"conceptId": concept_id, "maxDepth": max_depth, "resultLimit": result_limit}
+    # Prepare parameters for the query
+    parameters = {"conceptId": concept_id, "resultLimit": result_limit}
     endpoint_name = f"Causal Chain for '{concept_id}'"
-    
-    # Use the constant from specialized_queries module
-    query = specialized_queries.GET_CAUSAL_CHAIN
+
+    # Get the base query string
+    base_query = specialized_queries.GET_CAUSAL_CHAIN
+
+    # --- Format max_depth into the query string using .format() ---
+    formatted_query = base_query.format(max_depth=max_depth) # Use .format for {max_depth}
+    # -----------------------------------------------------------
 
     try:
-        result = await tx.run(query, parameters)
-        records = await result.records()
-        await result.consume()
+        print(f"DEBUG ({endpoint_name}): Executing query: {formatted_query} with params: {parameters}") # Log formatted query
+        result: AsyncResult = await tx.run(formatted_query, parameters)
 
-        paths = []
-        for record in records:
+        # Get results as a list of dictionaries
+        records_data: List[Dict] = await result.data()
+        summary = await result.consume()
+        print(f"DEBUG ({endpoint_name}): Query executed, {summary.counters}. Retrieved {len(records_data)} records.")
+
+        validated_paths = []
+        # Each record_dict should now contain {'nodes': [...], 'relationships': [...]} keys
+        for record_dict in records_data:
             try:
-                path_data = record.data().get('p')
-                if path_data:
-                    # PathResponse.from_neo4j_path needs careful implementation
-                    # to handle node/relationship properties and potential DateTime conversion
-                    paths.append(PathResponse.from_neo4j_path(path_data))
+                # Convert datetimes within the nested lists of nodes and relationships
+                converted_record = convert_neo4j_datetimes(record_dict)
+
+                # Directly validate the dictionary against PathResponse
+                # This assumes the structure from the Cypher query matches the model
+                # (List of node dicts, List of relationship dicts)
+                if converted_record and 'nodes' in converted_record and 'relationships' in converted_record:
+                    validated_path = PathResponse.model_validate(converted_record)
+                    validated_paths.append(validated_path)
                 else:
-                     print(f"WARN ({endpoint_name}): Record missing 'p' key for path data: {record.data()}")
-            except (AttributeError, ValidationError, KeyError, TypeError) as e: # Added TypeError
-                print(f"Error processing path record: {record.data()}. Error: {e}")
-                # Decide whether to skip or raise 500. Skipping for now.
-        return paths
+                     print(f"WARN ({endpoint_name}): Record dict missing 'nodes' or 'relationships' key after conversion: {converted_record}")
+
+            except (ValidationError, KeyError, AttributeError, TypeError) as e:
+                print(f"Error processing path record dict: {record_dict}. Error: {e}")
+                # Optionally, log the converted_record too if validation fails after conversion
+                # print(f"Converted data causing validation error: {converted_record}")
+
+        return validated_paths
+
     except neo4j_exceptions.Neo4jError as e:
         print(f"Neo4jError in {endpoint_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Database error getting causal chain: {e.code}")
